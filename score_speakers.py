@@ -64,8 +64,13 @@ if not turns:
 
 n, mlen = len(segs), len(turns)
 turn_words = [tw for _, tw in turns]
-sim = [[len(sw & tw) / max(1, len(sw)) for tw in turn_words]
-       for sw in (words(t) for _, _, t in segs)]
+seg_words = [words(t) for _, _, t in segs]
+# Kept alongside the ratio: the ratio alone cannot distinguish "8 of 10 content
+# words match this turn" from "the segment's single content word happens to
+# appear in it", and those are not equally good evidence.
+shared = [[len(sw & tw) for tw in turn_words] for sw in seg_words]
+sim = [[sh / max(1, len(sw)) for sh in row]
+       for sw, row in zip(seg_words, shared)]
 
 NEG = float("-inf")
 dp = [[NEG] * mlen for _ in range(n)]
@@ -89,18 +94,28 @@ for i in range(n - 1, -1, -1):
 # nothing about the labelling, so score those separately instead of counting
 # them as diarization errors.
 CONF = 0.30
+# A second, stricter tier, reported but NOT the headline. It was chosen after
+# seeing the result, so quoting it as an accuracy would be tuning; it is here
+# because it says something the ratio cannot - see the note printed below.
+MIN_SHARED = 2
 ok = bad = conf_ok = conf_bad = unplaced = 0
+strict_ok = strict_n = thin = 0
 rows = []
 for i, (ts, pred, txt) in enumerate(segs):
     truth, s = turns[path[i]][0], sim[i][path[i]]
+    sh = shared[i][path[i]]
     hit = pred == truth
     ok, bad = ok + hit, bad + (not hit)
     if s < CONF:
         unplaced += 1
     else:
         conf_ok, conf_bad = conf_ok + hit, conf_bad + (not hit)
+        if sh >= MIN_SHARED:
+            strict_n, strict_ok = strict_n + 1, strict_ok + hit
+        else:
+            thin += 1
     if not hit:
-        rows.append((ts, pred, truth, s, txt))
+        rows.append((ts, pred, truth, s, sh, txt))
 
 print(f"{LABELLED}  ({len(turns)} reference turns, {n} segments, "
       f"speakers: {', '.join(sorted(names))})")
@@ -114,8 +129,16 @@ if d:
           f"(conf >= {CONF}; {unplaced} segments unplaceable)")
 else:
     print(f"  confidently aligned  n/a - all {n} segments below conf {CONF}")
+if strict_n:
+    print(f"  ...of which {thin} rest on a single shared content word; drop "
+          f"those and it is {strict_ok}/{strict_n} = "
+          f"{100 * strict_ok / strict_n:.1f}%")
+    print(f"     (diagnostic, not a score: the >= {MIN_SHARED}-word floor was "
+          f"chosen after seeing the result)")
 
-print("\nmismatches (ts, predicted, reference, align-confidence):")
-for ts, pred, truth, s, txt in rows:
-    flag = "  <- alignment unreliable" if s < CONF else ""
-    print(f"  [{ts}] pred={pred:<6} ref={truth:<6} conf={s:.2f}  {txt[:70]}{flag}")
+print("\nmismatches (ts, predicted, reference, align-confidence, shared words):")
+for ts, pred, truth, s, sh, txt in rows:
+    flag = "  <- alignment unreliable" if s < CONF else (
+        "  <- rests on 1 shared word" if sh < MIN_SHARED else "")
+    print(f"  [{ts}] pred={pred:<6} ref={truth:<6} conf={s:.2f} n={sh:<2} "
+          f"{txt[:64]}{flag}")

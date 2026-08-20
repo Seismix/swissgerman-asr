@@ -40,6 +40,27 @@ genuine errors, and those are fixed (below).
 
 Don't quote a single accuracy figure from this without saying which one.
 
+The `conf >= 0.30` gate is a *ratio* — shared content words over the segment's
+content words — with no floor on how many words that is. A segment with one
+content word that happens to occur in the aligned turn scores 1.00 on the
+strength of a single coincidence. 13 of the 144 placeable segments are in that
+position, and **all four remaining mismatches are among them**:
+
+| | conf | shared words |
+| --- | --- | --- |
+| `[00:12:28]` "Genau." | 1.00 | 1 |
+| `[00:13:57]` | 0.50 | 1 |
+| `[00:16:32]` | 0.50 | 1 |
+| `[00:19:22]` | 0.33 | 1 |
+
+Require two shared content words and the figure is 131/131. **Do not quote
+that as an accuracy** — the floor was picked after seeing which segments failed,
+which is how you tune a number into meaninglessness. What it is good for is
+direction: the missing floor makes 97.2 % *pessimistic*, not optimistic, and it
+corroborates mechanically what hand-checking said, that these four are the
+aligner drifting rather than the labelling. `score_speakers.py` prints the
+shared-word count per mismatch so this is visible instead of inferred.
+
 ## What the original prediction got wrong
 
 This doc used to say a sub-1.5 s segment has too little voice to embed and must
