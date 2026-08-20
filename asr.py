@@ -8,23 +8,50 @@ from transcript import Seg
 HERE = pathlib.Path(__file__).resolve().parent
 CACHE = HERE / "cache"
 
-DEFAULT = "flix-ct2"
+# One model, not a bench. The four-way comparison this started as was prototype
+# work: it picked flix-ct2 and there is no reason to keep re-running it. What
+# survives is the ability to point at something else - see docs/findings.md for
+# what that comparison concluded, and ./build_ct2.py to convert another model.
+DEFAULT_MODEL = str(HERE / "flix-ct2")
 
-MODELS = {
-    # key: (repo, backend, license, note)
-    "flix-ct2": (str(HERE / "flix-ct2"), "fw", "Apache-2.0",
-                 "RECOMMENDED. Flix-AI/flix-swissgerman-full converted to CTranslate2 fp16. "
-                 "Run ./build_flix_ct2.py once to create it. Best speed/quality/licence mix."),
-    "flix": ("Flix-AI/flix-swissgerman-full", "hf", "Apache-2.0",
-             "same weights via HuggingFace transformers. 25.6% WER / 13.8% cWER on "
-             "ASGDTS (arXiv 2606.07608). Use --longform."),
-    "ct2": ("OSTswiss/whisper-large-v3-turbo-swiss-german-ct2", "fw", "CC-BY-NC-4.0",
-            "turbo fine-tune, 1.6 GB, fastest and lowest VRAM. NON-COMMERCIAL - the "
-            "upstream weights are CC-BY-NC, so any repo labelling this Apache-2.0 is wrong."),
-    "base-v3": ("openai/whisper-large-v3", "hf", "Apache-2.0",
-                "control: no Swiss German fine-tune. 28.56% WER on ASGDTS, i.e. only "
-                "~3 points behind the fine-tunes. Run it before assuming a FT is needed."),
-}
+
+def parse_model_spec(spec=None):
+    """-> (repo, key). A local directory, an HF repo id, or a hf.co URL.
+
+    `key` names the output files, so the default resolves to "flix-ct2" and
+    out/flix-ct2.txt keeps the name it has always had.
+    """
+    spec = str(spec or DEFAULT_MODEL).strip()
+    if "://" in spec:
+        host, _, path = spec.split("://", 1)[1].partition("/")
+        if "huggingface.co" not in host:
+            raise ValueError(f"only huggingface.co URLs are understood: {spec}")
+        parts = [x for x in path.split("/") if x]
+        for cut in ("tree", "blob", "resolve"):
+            if cut in parts:
+                parts = parts[:parts.index(cut)]
+        if len(parts) != 2:
+            raise ValueError(f"cannot read a repo id out of: {spec}")
+        return "/".join(parts), parts[-1]
+    path = pathlib.Path(spec).expanduser()
+    if path.is_absolute() or spec.startswith((".", "/", "~")) or path.exists():
+        return str(path.resolve()), path.name
+    if spec.count("/") != 1:
+        raise ValueError(f"expected 'Owner/Name', a URL, or a local path: {spec}")
+    return spec, spec.split("/")[-1]
+
+
+def detect_backend(repo):
+    """CTranslate2 if it looks like a converted model, transformers otherwise.
+
+    A CTranslate2 directory always has model.bin at its root; a transformers
+    checkpoint never does. A remote repo is assumed to be transformers, which
+    is what --backend is for when it is not.
+    """
+    path = pathlib.Path(repo)
+    if path.is_dir():
+        return "fw" if (path / "model.bin").exists() else "hf"
+    return "hf"
 
 
 # Everything below assumed a CUDA box. It is resolved once at startup instead,
@@ -182,37 +209,22 @@ def run_hf(repo, wav, longform=False, offset=0.0, device="cuda"):
             for c in r["chunks"]]
 
 
-def unsupported_compute_type(keys, compute_type):
-    """Model keys that would silently ignore --compute-type.
-
-    It is a CTranslate2 setting. The transformers backend picks precision from
-    the device, so passing one there changed nothing while _timings.tsv - the
-    artifact this tool exists to produce - recorded the run as if it had.
-    Checked up front, because the alternative is finding out after a decode.
-    """
-    if not compute_type:
-        return []
-    return [k for k in keys if MODELS[k][1] != "fw"]
-
-
-def transcribe(key, wav, longform=False, offset=0.0, device="cuda",
+def transcribe(repo, backend, wav, longform=False, offset=0.0, device="cuda",
                compute_type=None):
-    repo, backend, _, _ = MODELS[key]
     if backend == "fw":
         return run_fw(repo, wav, offset, device, compute_type)
     assert not compute_type, "run.py should have rejected this up front"
     return run_hf(repo, wav, longform, offset, device)
 
 
-def missing_local(key):
+def missing_local(repo):
     """A local-path model that has not been built yet.
 
-    Tested by absolute-vs-relative, not by looking for a slash: flix-ct2's repo
-    is built from HERE, so it always contains slashes and the old
+    Tested by absolute-vs-relative, not by looking for a slash: the default
+    model is built from HERE, so it always contains slashes and the old
     `"/" not in repo` check never fired. An unbuilt flix-ct2 fell through to
     the backend and surfaced as a decoder exception instead of "run
-    ./build_flix_ct2.py".
+    ./build_ct2.py".
     """
-    repo, _, _, _ = MODELS[key]
     path = pathlib.Path(repo)
     return path.is_absolute() and not path.exists()

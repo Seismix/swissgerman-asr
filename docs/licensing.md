@@ -5,18 +5,18 @@ with restrictive terms, and those terms propagate into every derivative.
 
 ## The clean option
 
-**`flix` / `flix-ct2`** — `Flix-AI/flix-swissgerman-full`, **Apache-2.0**.
+**The default** — `Flix-AI/flix-swissgerman-full`, **Apache-2.0**.
 Full fine-tune of whisper-large-v3, from arXiv 2606.07608 (Felix Akeret,
-May 2026). No usage restriction. This is why it's the default despite `ct2`
-being smaller and faster.
+May 2026). No usage restriction. This is why it is the default despite the
+alternative below being smaller and faster.
 
-`flix-ct2` is that model converted to CTranslate2 by `build_flix_ct2.py`.
+`./flix-ct2` is that model converted to CTranslate2 by `build_ct2.py`.
 A format conversion is a derivative, and Apache-2.0 permits it — so the
 conversion is Apache-2.0 too.
 
 ## The restricted option
 
-**`ct2`** — `OSTswiss/whisper-large-v3-turbo-swiss-german-ct2`,
+**`OSTswiss/whisper-large-v3-turbo-swiss-german-ct2`** —
 **CC-BY-NC-4.0**. A CTranslate2 export of `Flurin17/whisper-large-v3-turbo-swiss-german`,
 which is CC-BY-NC because its training data (SwissDial) is.
 

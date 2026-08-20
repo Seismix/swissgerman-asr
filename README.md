@@ -8,16 +8,15 @@ on an RTX 4060 Laptop (measured 151–154 s), plus 6 s to label the speakers.
 
 ```bash
 ./setup.sh            # venv + torch (CUDA or CPU wheels, auto) + faster-whisper
-./build_flix_ct2.py   # one-time, ~3 GB download, produces ./flix-ct2
+./build_ct2.py        # one-time, ~3 GB download, produces ./flix-ct2
 ```
 
 ## Run
 
 ```bash
-python run.py interview.m4a                       # recommended model
-python run.py interview.m4a --all                 # compare all models
-python run.py interview.m4a flix --longform       # transformers backend
-python run.py --list
+python run.py interview.m4a                       # the default model
+python run.py interview.m4a --model ./other-ct2   # another converted model
+python run.py interview.m4a --model Owner/Name --longform   # straight from HF
 ```
 
 Speaker labels:
@@ -62,21 +61,28 @@ which works and is much slower. `setup.sh` picks matching torch wheels.
 | file | |
 | --- | --- |
 | `run.py` | CLI and orchestration |
-| `build_flix_ct2.py` | one-time model conversion to CTranslate2 |
+| `build_ct2.py` | one-time model conversion to CTranslate2 |
 | `asr.py` | model registry, audio prep, the two decoding backends |
 | `transcript.py` | segments, turn merging, output formats |
 | `diarize.py` | speaker embeddings and clustering |
 | `score_speakers.py` | dev tool: scores labels against a reference attribution |
 | `setup.sh` | the only shell script: it creates the venv the rest runs in |
 
-## Models
+## The model
 
-| key | licence | |
-|---|---|---|
-| `flix-ct2` | Apache-2.0 | **default** |
-| `flix` | Apache-2.0 | same weights, transformers backend |
-| `ct2` | CC-BY-NC-4.0 | smallest and fastest — **non-commercial only** |
-| `base-v3` | Apache-2.0 | control: stock Whisper, no Swiss German fine-tune |
+`./flix-ct2` — `Flix-AI/flix-swissgerman-full` converted to CTranslate2,
+**Apache-2.0**, built by `./build_ct2.py`. It is the default because it won a
+four-way comparison on licence, speed and quality; [findings.md](docs/findings.md)
+records what that comparison found and [licensing.md](docs/licensing.md) why the
+smaller, faster alternative was not chosen.
+
+`--model` takes any converted directory, HF repo id, or huggingface.co URL, and
+`./build_ct2.py <model>` converts another one. `--backend` picks CTranslate2 or
+transformers; `auto` decides by whether the directory holds a `model.bin`.
+
+**Check the licence of anything you point it at.** Several Swiss German
+fine-tunes are CC-BY-NC, and at least one repo relabels one of them Apache-2.0
+incorrectly.
 
 ## Docs
 

@@ -3,6 +3,12 @@
 Measured on 2 minutes of clean lavalier-mic dialect interview audio plus one
 full 25 minute run. Two speakers, quiet room, single mono track.
 
+**This records a comparison that has been run and closed.** It selected the
+default model; `run.py` no longer compares models, and the four-way bench that
+produced these numbers is gone. Kept because the conclusions are the reason for
+the current default, and re-deriving them costs GPU hours. `--model` still
+points at anything else, and `./build_ct2.py` converts it.
+
 ## Fine-tuning buys less than the model cards suggest
 
 Four models, ~300 words, two or three words of disagreement between them.

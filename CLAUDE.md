@@ -16,9 +16,17 @@ and could not take positional args safely.
 
 `setup.sh` is the only shell script and stays one because it builds the venv
 everything else runs inside. `build_flix_ct2.sh` was a bash wrapper around a
-Python heredoc and is now `build_flix_ct2.py`; the conversion is all-or-nothing
-via a temp directory, because `asr.missing_local` only asks whether `flix-ct2/`
-exists and a directory that exists but is incomplete reports as built.
+Python heredoc and is now `build_ct2.py`, which takes any HF repo id, URL or
+local checkpoint and defaults to the flix model. The conversion is
+all-or-nothing via a temp directory, because `asr.missing_local` only asks
+whether the directory exists and one that exists but is incomplete reports as
+built.
+
+**The model comparison is gone.** `run.py` ran a four-model registry with
+`--all` and wrote `out/_timings.tsv`; that was prototype scaffolding, it picked
+`flix-ct2`, and it is not worth re-running. One model per invocation now,
+`--model` to change it. `docs/findings.md` keeps what the comparison concluded
+— read it before re-adding a bench.
 
 - WSL Ubuntu 24.04, `.venv` built by `setup.sh`, CUDA verified on an RTX 4060 Laptop
 - **Device is auto-detected** (`--device auto`), so this runs on a machine with

@@ -1,14 +1,16 @@
-"""Swiss German ASR bench - Swiss German speech in, Standard German text out.
+"""Swiss German ASR - Swiss German speech in, Standard German text out.
 
-    python run.py audio.m4a                        # recommended model
-    python run.py audio.m4a --all                  # every model, for comparison
-    python run.py audio.m4a flix --longform        # HF backend, long-form decoding
+    python run.py audio.m4a                        # the default model
     python run.py audio.m4a --names Anna Beat      # transcribe and label speakers
     python run.py audio.m4a --clip 5:00-7:00       # one span only
-    python run.py --list
+    python run.py audio.m4a --model openai/whisper-large-v3
+    python run.py audio.m4a --model ./other-ct2
 
-Transcripts land in out/<key>.txt, timings in out/_timings.tsv. Decoded audio
-is cached in cache/ so the source directory is never written to.
+Defaults to ./flix-ct2, which ./build_ct2.py produces. --model also takes an
+HF repo id, a huggingface.co URL, or another converted directory.
+
+Transcripts land in out/<model-name>.txt. Decoded audio is cached in cache/ so
+the source directory is never written to.
 """
 import argparse
 import json
@@ -38,14 +40,14 @@ def build_parser():
     p = argparse.ArgumentParser(
         description=__doc__.split("\n")[0],
         formatter_class=argparse.RawDescriptionHelpFormatter,
-        epilog="model keys: " + ", ".join(asr.MODELS))
+        epilog=f"default model: {asr.DEFAULT_MODEL}")
     p.add_argument("audio", nargs="?", help="any format ffmpeg reads")
-    p.add_argument("models", nargs="*", default=None,
-                   help=f"model keys (default: {asr.DEFAULT})")
-    p.add_argument("--list", action="store_true",
-                   help="show the model registry and exit")
-    p.add_argument("--all", action="store_true",
-                   help="run every model (not with an explicit model list)")
+    p.add_argument("--model", default=None, metavar="SPEC",
+                   help="converted directory, HF repo id, or huggingface.co "
+                        "URL (default: ./flix-ct2)")
+    p.add_argument("--backend", default="auto", choices=["auto", "fw", "hf"],
+                   help="fw = CTranslate2, hf = transformers. auto picks fw "
+                        "for a directory containing model.bin (default)")
     p.add_argument("--longform", action="store_true",
                    help="HF backend: Whisper's sequential algorithm")
     p.add_argument("--clip", metavar="START-END",
@@ -88,12 +90,6 @@ def build_parser():
                         f"before its own embedding beats a neighbour's label "
                         f"(default: {diarize.MARGIN}). Implies --diarize.")
     return p
-
-
-def show_models():
-    w = max(len(k) for k in asr.MODELS)
-    for k, (repo, _, lic, note) in asr.MODELS.items():
-        print(f"{k:<{w}}  {lic:<14} {repo}\n{'':<{w}}  {note}\n")
 
 
 def resolve_names(a, parser):
@@ -182,17 +178,12 @@ def warn_stale(out, key):
 def main(argv=None):
     parser = build_parser()
     a = parser.parse_args(argv)
-    if a.list:
-        show_models()
-        return 0
 
     if a.names or a.min_dur is not None or a.margin is not None or a.relabel:
         a.diarize = True
     names = resolve_names(a, parser)
     if not a.audio:
-        parser.error("an audio file is required (or --list to see the models)")
-    if a.all and a.models:
-        parser.error("--all runs every model; drop it, or drop the model list")
+        parser.error("an audio file is required")
     if a.merge_turns and not a.diarize:
         print("note: --merge-turns has nothing to merge without speaker labels")
     formats = a.formats or ["txt"]
@@ -200,20 +191,21 @@ def main(argv=None):
     src = pathlib.Path(a.audio).expanduser()
     if not src.exists():
         sys.exit(f"no such file: {src}")
-    keys = a.models or (list(asr.MODELS) if a.all else [asr.DEFAULT])
-    unknown = [k for k in keys if k not in asr.MODELS]
-    if unknown:
-        sys.exit(f"unknown model(s): {', '.join(unknown)} (try --list)")
 
-    # Checked before anything expensive: the point of rejecting these is to not
-    # find out after a decode that the timing in _timings.tsv means something
-    # other than what was asked for.
-    ignored = asr.unsupported_compute_type(keys, a.compute_type)
-    if ignored:
-        sys.exit(f"--compute-type is a CTranslate2 setting, and {', '.join(ignored)} "
-                 f"run(s) on the transformers backend where it would be accepted "
-                 f"and ignored.\nDrop --compute-type, or pick CTranslate2 models "
-                 f"only ({', '.join(k for k, v in asr.MODELS.items() if v[1] == 'fw')}).")
+    try:
+        repo, key = asr.parse_model_spec(a.model)
+    except ValueError as e:
+        sys.exit(str(e))
+    backend = a.backend if a.backend != "auto" else asr.detect_backend(repo)
+
+    # Checked before anything expensive: the point of rejecting this is to not
+    # find out after a decode that the run used a precision other than the one
+    # that was asked for.
+    if a.compute_type and backend != "fw":
+        sys.exit(f"--compute-type is a CTranslate2 setting, and {key} runs on "
+                 f"the transformers backend where it would be accepted and "
+                 f"ignored.\nDrop it, or pass --backend fw if {key} really is "
+                 f"a converted model.")
 
     # Parsed before the device probe, which imports torch: an unparseable
     # --clip should not cost two seconds to be told about.
@@ -221,6 +213,10 @@ def main(argv=None):
         clip = asr.parse_clip(a.clip) if a.clip else None
     except ValueError as e:
         sys.exit(str(e))
+
+    if asr.missing_local(repo):
+        sys.exit(f"{repo} does not exist.\nRun ./build_ct2.py to create it, or "
+                 f"pass --model.")
 
     device = asr.resolve_device(a.device)
     if a.device == "auto":
@@ -231,72 +227,53 @@ def main(argv=None):
     offset = clip[0] if clip else 0.0
 
     a.out.mkdir(parents=True, exist_ok=True)
-    rows, failures = [], 0
-    for k in keys:
-        repo = asr.MODELS[k][0]
-        lic = asr.MODELS[k][2]
-        print(f"\n=== {k}  ({repo}) ===", flush=True)
-        if asr.missing_local(k):
-            print(f"  SKIPPED: {repo} not built. Run ./build_flix_ct2.py")
-            rows.append((k, "SKIPPED", lic))
-            failures += 1
-            continue
+    print(f"\n=== {key}  ({repo}, {backend}) ===", flush=True)
 
-        t0 = time.time()
-        cached = a.out / f"{k}.segments.json"
-        segs = None
-        if a.relabel and cached.exists():
-            segs, why = load_segments(cached, k, ident)
-            if segs is None:
-                sys.exit(f"--relabel refused: {cached} cannot be reused because "
-                         f"{why}.\nRe-run without --relabel to transcribe "
-                         f"{src.name} from scratch.")
-            print(f"  reusing {len(segs)} cached segments")
-        elif a.relabel:
-            print(f"  no cached segments at {cached.name}; transcribing once")
+    t0 = time.time()
+    cached = a.out / f"{key}.segments.json"
+    segs = None
+    if a.relabel and cached.exists():
+        segs, why = load_segments(cached, key, ident)
         if segs is None:
-            try:
-                segs = asr.transcribe(k, wav, a.longform, offset, device,
-                                      a.compute_type)
-            except Exception as e:
-                print(f"  FAILED: {type(e).__name__}: {e}")
-                rows.append((k, "FAILED", lic))
-                failures += 1
-                continue
-            save_segments(cached, k, ident, segs)
-        dt = time.time() - t0
+            sys.exit(f"--relabel refused: {cached} cannot be reused because "
+                     f"{why}.\nRe-run without --relabel to transcribe "
+                     f"{src.name} from scratch.")
+        print(f"  reusing {len(segs)} cached segments")
+    elif a.relabel:
+        print(f"  no cached segments at {cached.name}; transcribing once")
+    if segs is None:
+        try:
+            segs = asr.transcribe(repo, backend, wav, a.longform, offset,
+                                  device, a.compute_type)
+        except Exception as e:
+            print(f"  FAILED: {type(e).__name__}: {e}")
+            return 1
+        save_segments(cached, key, ident, segs)
+    dt = time.time() - t0
 
-        labels = None
-        if a.diarize:
-            t1 = time.time()
-            try:
-                labels, stats = diarize.label(wav, segs, a.speakers, names,
-                                              device=device, offset=offset,
-                                              **diar_opts(a))
-                print(f"  diarize {time.time() - t1:.0f}s  {stats}")
-            except Exception as e:
-                print(f"  diarize FAILED: {type(e).__name__}: {e}")
-                warn_stale(a.out, k)
-                rows.append((k, "DIARIZE FAILED", lic))
-                failures += 1
-                continue
+    labels = None
+    if a.diarize:
+        t1 = time.time()
+        try:
+            labels, stats = diarize.label(wav, segs, a.speakers, names,
+                                          device=device, offset=offset,
+                                          **diar_opts(a))
+            print(f"  diarize {time.time() - t1:.0f}s  {stats}")
+        except Exception as e:
+            print(f"  diarize FAILED: {type(e).__name__}: {e}")
+            warn_stale(a.out, key)
+            return 1
 
-        rows.append((k, f"{dt:.0f}s", lic))
-        for fmt in formats:
-            text = transcript.render(segs, labels, fmt, a.merge_turns)
-            dst = a.out / f"{k}{'.speakers' if labels else ''}.{fmt}"
-            dst.write_text(text, encoding="utf-8")
-            cwd = pathlib.Path.cwd()
-            shown = dst.relative_to(cwd) if dst.is_relative_to(cwd) else dst
-            print(f"  {dt:.0f}s -> {shown}")
-        preview = transcript.render(segs, labels, "txt", a.merge_turns)
-        print("  preview:", preview[:240].replace("\n", " | "))
-
-    (a.out / "_timings.tsv").write_text(
-        "model\tseconds\tlicense\n" + "\n".join("\t".join(r) for r in rows) + "\n",
-        encoding="utf-8")
-    print("\n" + "\n".join(f"{x}\t{y}\t{z}" for x, y, z in rows))
-    return 1 if failures else 0
+    for fmt in formats:
+        text = transcript.render(segs, labels, fmt, a.merge_turns)
+        dst = a.out / f"{key}{'.speakers' if labels else ''}.{fmt}"
+        dst.write_text(text, encoding="utf-8")
+        cwd = pathlib.Path.cwd()
+        shown = dst.relative_to(cwd) if dst.is_relative_to(cwd) else dst
+        print(f"  {dt:.0f}s -> {shown}")
+    preview = transcript.render(segs, labels, "txt", a.merge_turns)
+    print("  preview:", preview[:240].replace("\n", " | "))
+    return 0
 
 
 if __name__ == "__main__":
