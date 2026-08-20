@@ -8,7 +8,7 @@ on an RTX 4060 Laptop (measured 151–154 s), plus 6 s to label the speakers.
 
 ```bash
 ./setup.sh            # venv + torch (CUDA or CPU wheels, auto) + faster-whisper
-./build_flix_ct2.sh   # one-time, ~3 GB download, produces ./flix-ct2
+./build_flix_ct2.py   # one-time, ~3 GB download, produces ./flix-ct2
 ```
 
 ## Run
@@ -25,6 +25,7 @@ Speaker labels:
 ```bash
 python run.py interview.m4a --diarize             # S1, S2, ...
 python run.py interview.m4a --names Anna Beat     # in order of first speech
+python run.py interview.m4a --names Anna,Beat     # same thing
 python run.py interview.m4a --names Anna Beat --merge-turns   # one block per turn
 python run.py interview.m4a --relabel             # re-cluster, skip transcription
 ```
@@ -45,7 +46,9 @@ counted from the beginning of the recording. `--format` also takes `srt`,
 never beside the source file.
 
 `--names` takes speakers **in the order they first speak**. Getting it backwards
-is silent: the clustering stays correct and only the names swap.
+is silent: the clustering stays correct and only the names swap. Getting the
+*count* wrong is not silent — one name per `--speakers`, or it refuses. Put the
+audio path before `--names`, which is greedy and will otherwise swallow it.
 
 `--clip` timestamps stay relative to the full recording, so a clipped run lines
 up with a full one. That does mean an `srt` of a clipped span is offset by the
@@ -59,10 +62,12 @@ which works and is much slower. `setup.sh` picks matching torch wheels.
 | file | |
 | --- | --- |
 | `run.py` | CLI and orchestration |
+| `build_flix_ct2.py` | one-time model conversion to CTranslate2 |
 | `asr.py` | model registry, audio prep, the two decoding backends |
 | `transcript.py` | segments, turn merging, output formats |
 | `diarize.py` | speaker embeddings and clustering |
-| `score_speakers.py` | dev tool: scores labels against the docx attribution |
+| `score_speakers.py` | dev tool: scores labels against a reference attribution |
+| `setup.sh` | the only shell script: it creates the venv the rest runs in |
 
 ## Models
 

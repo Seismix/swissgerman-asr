@@ -237,7 +237,7 @@ def main(argv=None):
         lic = asr.MODELS[k][2]
         print(f"\n=== {k}  ({repo}) ===", flush=True)
         if asr.missing_local(k):
-            print(f"  SKIPPED: {repo} not built. Run ./build_flix_ct2.sh")
+            print(f"  SKIPPED: {repo} not built. Run ./build_flix_ct2.py")
             rows.append((k, "SKIPPED", lic))
             failures += 1
             continue

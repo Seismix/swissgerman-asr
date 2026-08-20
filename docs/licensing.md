@@ -10,7 +10,7 @@ Full fine-tune of whisper-large-v3, from arXiv 2606.07608 (Felix Akeret,
 May 2026). No usage restriction. This is why it's the default despite `ct2`
 being smaller and faster.
 
-`flix-ct2` is that model converted to CTranslate2 by `build_flix_ct2.sh`.
+`flix-ct2` is that model converted to CTranslate2 by `build_flix_ct2.py`.
 A format conversion is a derivative, and Apache-2.0 permits it — so the
 conversion is Apache-2.0 too.
 

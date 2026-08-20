@@ -14,7 +14,7 @@ MODELS = {
     # key: (repo, backend, license, note)
     "flix-ct2": (str(HERE / "flix-ct2"), "fw", "Apache-2.0",
                  "RECOMMENDED. Flix-AI/flix-swissgerman-full converted to CTranslate2 fp16. "
-                 "Run ./build_flix_ct2.sh once to create it. Best speed/quality/licence mix."),
+                 "Run ./build_flix_ct2.py once to create it. Best speed/quality/licence mix."),
     "flix": ("Flix-AI/flix-swissgerman-full", "hf", "Apache-2.0",
              "same weights via HuggingFace transformers. 25.6% WER / 13.8% cWER on "
              "ASGDTS (arXiv 2606.07608). Use --longform."),
@@ -211,7 +211,7 @@ def missing_local(key):
     is built from HERE, so it always contains slashes and the old
     `"/" not in repo` check never fired. An unbuilt flix-ct2 fell through to
     the backend and surfaced as a decoder exception instead of "run
-    ./build_flix_ct2.sh".
+    ./build_flix_ct2.py".
     """
     repo, _, _, _ = MODELS[key]
     path = pathlib.Path(repo)

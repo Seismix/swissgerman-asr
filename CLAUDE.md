@@ -14,6 +14,12 @@ prep and both backends, `transcript.py` holds segments and output formats,
 is argparse; an earlier version hand-parsed `--flag=value` out of `sys.argv`
 and could not take positional args safely.
 
+`setup.sh` is the only shell script and stays one because it builds the venv
+everything else runs inside. `build_flix_ct2.sh` was a bash wrapper around a
+Python heredoc and is now `build_flix_ct2.py`; the conversion is all-or-nothing
+via a temp directory, because `asr.missing_local` only asks whether `flix-ct2/`
+exists and a directory that exists but is incomplete reports as built.
+
 - WSL Ubuntu 24.04, `.venv` built by `setup.sh`, CUDA verified on an RTX 4060 Laptop
 - **Device is auto-detected** (`--device auto`), so this runs on a machine with
   no NVIDIA GPU, slowly. `setup.sh` picks CUDA or CPU torch wheels the same way.
@@ -21,8 +27,9 @@ and could not take positional args safely.
   the chunked and `--longform` HF paths work. Deliberately left unpinned.
 - `flix-ct2/` is built and present (2.9 GB, gitignored)
 - Last measured: 2 min of audio in 21–22 s
-- **No git repo yet.** `.gitignore` is written and correct. `git init` was left
-  to the user.
+- **Git repo initialised 2026-08-20**, no remote. `.gitignore` excludes the
+  recordings, everything derived from them, and the model weights. Before adding
+  a remote, note that nothing tracked names the interviewee — keep it that way.
 
 Test audio and all development transcripts live in `data/` (gitignored, 44 MB) —
 see `data/README.md`. It contains a recording of a **named, identifiable person**
