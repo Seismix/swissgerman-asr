@@ -1,8 +1,8 @@
 # swissgerman-asr
 
 Swiss German speech in, **Standard German** text out. Runs locally — nothing is
-uploaded. 25 minutes of audio takes about 50 s on an RTX 4060 Laptop, or several
-minutes on CPU.
+uploaded. 25 minutes of audio takes about 50 s on an RTX 4060 Laptop, or 8
+minutes on a 16-thread CPU.
 
 Optionally labels who is speaking.
 
@@ -23,7 +23,7 @@ pulls the 1.6 GB model and caches it.
 ## AMD GPUs
 
 The default model runs on **CPU** — CTranslate2 has no ROCm backend, and no
-flag changes that. To use the card, switch models:
+flag changes that. Budget the 8 minutes above. To use the card, switch models:
 
 ```bash
 python run.py interview.m4a --model Flix-AI/flix-swissgerman-full --longform

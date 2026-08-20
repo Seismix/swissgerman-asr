@@ -57,6 +57,42 @@ segments are far easier to place than 188 short ones. The honest signal is
 centroid cosine distance, which is unchanged at 0.845 vs 0.846 — the voices
 separate exactly as well, because the embeddings never depended on the ASR model.
 
+## What it costs without an NVIDIA GPU
+
+The default backend is CTranslate2, which has exactly two devices: `cuda` and
+`cpu`. It rejects `rocm` and `hip`, so **an AMD card cannot run the default
+model at all** — this is not a driver or a flag problem.
+
+Measured on this machine, `--device cpu` against the auto-detected GPU. Wall
+clock, so both include ~18 s of model load:
+
+| | 2 min clip | full interview |
+| --- | --- | --- |
+| RTX 4060 Laptop | 22 s | 48 s |
+| CPU, 16 threads (Ryzen 7 7840HS) | 45 s | **7 m 54 s** |
+
+Model load dominates the short clip, which is why the gap looks like 2× there
+and is 10× on the interview. Slow, not unusable.
+
+**The CPU transcript is not the GPU transcript.** On the full interview the two
+differ on 187 lines, 111 segments against 90, and 3516 words against 3470.
+That is not the quantization — on the clip, `int8` and `int8_float16` on CUDA
+come out byte-identical, while `cuda/int8` and `cpu/int8` do not. It is the
+kernels: tiny numeric differences that beam search amplifies into different
+segment boundaries, compounding over 25 minutes. Content is equivalent,
+segmentation is not, and **a diarization score measured on one device does not
+transfer to the other** — the scorer is sensitive to segment granularity, which
+is exactly what changes here.
+
+On AMD the GPU is not wasted entirely. The ECAPA embeddings are plain torch, and
+a ROCm build runs them, so speaker labels stay on the card; `resolve_device`
+returns a separate device for each side for exactly that reason. The
+transformers backend is torch too, which makes
+`--model Flix-AI/flix-swissgerman-full --longform` the one GPU transcription
+path on a Radeon — and Apache-2.0, so the licence question goes away with it.
+**Untested on real AMD hardware**: the ROCm branches were exercised by faking
+`torch.version.hip`, which proves the routing and nothing about the kernels.
+
 ## Fine-tuning buys less than the model cards suggest
 
 Four models, ~300 words, two or three words of disagreement between them.

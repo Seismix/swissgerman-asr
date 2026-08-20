@@ -46,7 +46,12 @@ local conversion is ever wanted again — `git show 47d56af:build_ct2.py`.
   the chunked and `--longform` HF paths work. Deliberately left unpinned.
 - **No model is stored in the repo.** The default is pulled from HF on first
   run and cached in `~/.cache/huggingface` (1.6 GB).
-- Last measured: the 25 min interview in 48 s + 3 s diarization
+- Last measured: the 25 min interview in 48 s + 3 s diarization, or 7 m 54 s on
+  16 CPU threads. **CPU and GPU do not produce the same transcript** - 111
+  segments against 90 on the full interview. It is the kernels, not the
+  quantization (`int8` and `int8_float16` on CUDA are byte-identical), and it
+  means a diarization score measured on one device does not transfer to the
+  other. `docs/findings.md` has the numbers.
 - **Git repo initialised 2026-08-20**, no remote. `.gitignore` excludes the
   recordings, everything derived from them, and the model weights. Before adding
   a remote, note that nothing tracked names the interviewee — keep it that way.
