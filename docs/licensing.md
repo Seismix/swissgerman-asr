@@ -31,13 +31,27 @@ whisper-large-v3, from arXiv 2606.07608 (Felix Akeret, May 2026). No usage
 restriction.
 
 ```bash
-./build_ct2.py && python run.py interview.m4a --model ./flix-ct2
+python run.py interview.m4a --model Flix-AI/flix-swissgerman-full --longform
 ```
 
-There is no CTranslate2 export of it on the hub, which is why `build_ct2.py`
-exists: it downloads the transformers checkpoint (~3 GB) and converts locally. A
-format conversion is a derivative, and Apache-2.0 permits it, so `./flix-ct2` is
-Apache-2.0 too.
+No conversion step: that runs it on the transformers backend straight from the
+hub (~3 GB). `--longform` is not optional here — without it the chunked pipeline
+returns three segments of up to 267 words, which diarizes badly. See
+[findings.md](findings.md).
+
+**This path has not been re-run since 2026-08-20**, when the CTranslate2
+converter and its 2.9 GB output were deleted. The numbers above are from the
+original bench, where the transformers backend on this model measured 42 s on
+the 2 min clip against the converted model's 22 s. Expect it to be roughly 2x
+slower than the default, on top of the default already being 3x faster than the
+converted flix. Budget accordingly and verify before promising anyone a
+turnaround.
+
+If the conversion is wanted back, `build_ct2.py` is in git history:
+
+```bash
+git show 47d56af:build_ct2.py > build_ct2.py && chmod +x build_ct2.py
+```
 
 ## Mislabelled clones
 

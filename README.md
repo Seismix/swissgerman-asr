@@ -67,7 +67,6 @@ which works and is much slower. `setup.sh` picks matching torch wheels.
 | file | |
 | --- | --- |
 | `run.py` | CLI and orchestration |
-| `build_ct2.py` | optional: converts a transformers model to CTranslate2 |
 | `asr.py` | model resolution, audio prep, the two decoding backends |
 | `transcript.py` | segments, turn merging, output formats |
 | `diarize.py` | speaker embeddings and clustering |
@@ -78,25 +77,23 @@ which works and is much slower. `setup.sh` picks matching torch wheels.
 
 `OSTswiss/whisper-large-v3-turbo-swiss-german-ct2` — **CC-BY-NC-4.0**, 1.6 GB,
 already CTranslate2 so nothing is built locally. It transcribes the 25 minute
-test interview in 48 s against the Apache-2.0 alternative's 154 s, for output
-[findings.md](docs/findings.md) measures as equivalent: identical content-word
-recall, proper-noun errors a wash, 7 % fewer words that are all filler.
+test interview in 48 s, against 154 s for a locally-converted Apache-2.0 model
+that this repo no longer builds, for output [findings.md](docs/findings.md)
+measures as equivalent: identical content-word recall, proper-noun errors a
+wash, 7 % fewer words that are all filler.
 
 **It is non-commercial.** That is the whole reason this is a choice rather than
 an obvious default — see [licensing.md](docs/licensing.md). For anything
-billable:
+billable, the Apache-2.0 model runs without conversion on the transformers
+backend:
 
 ```bash
-./build_ct2.py && python run.py interview.m4a --model ./flix-ct2
+python run.py interview.m4a --model Flix-AI/flix-swissgerman-full --longform
 ```
 
-That downloads `Flix-AI/flix-swissgerman-full` (~3 GB, **Apache-2.0**) and
-converts it locally, because no CTranslate2 export of it exists on the hub.
-
-`--model` takes any converted directory, HF repo id, or huggingface.co URL, and
-`./build_ct2.py <model>` converts another one. `--backend` picks CTranslate2 or
-transformers; `auto` decides by whether the model has `model.bin` at its root,
-on disk or on the hub.
+`--model` takes any converted directory, HF repo id, or huggingface.co URL.
+`--backend` picks CTranslate2 or transformers; `auto` decides by whether the
+model has `model.bin` at its root, on disk or on the hub.
 
 **Check the licence of anything you point it at.** Several Swiss German
 fine-tunes are CC-BY-NC, and at least one repo relabels one of them Apache-2.0

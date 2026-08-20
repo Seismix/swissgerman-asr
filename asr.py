@@ -12,9 +12,8 @@ CACHE = HERE / "cache"
 # build step: faster-whisper pulls 1.6 GB on first run and caches it.
 #
 # CC-BY-NC-4.0. Fine for coursework and personal research, NOT for commercial
-# work - docs/licensing.md has the chain and ./build_ct2.py builds the
-# Apache-2.0 alternative if you need one. docs/findings.md has the measurements
-# that chose it.
+# work - docs/licensing.md has the chain and the Apache-2.0 route if you need
+# one. docs/findings.md has the measurements that chose it.
 DEFAULT_MODEL = "OSTswiss/whisper-large-v3-turbo-swiss-german-ct2"
 
 
@@ -237,11 +236,12 @@ def transcribe(repo, backend, wav, longform=False, offset=0.0, device="cuda",
 def missing_local(repo):
     """A local-path model that has not been built yet.
 
-    Tested by absolute-vs-relative, not by looking for a slash: the default
-    model is built from HERE, so it always contains slashes and the old
-    `"/" not in repo` check never fired. An unbuilt flix-ct2 fell through to
-    the backend and surfaced as a decoder exception instead of "run
-    ./build_ct2.py".
+    Tested by absolute-vs-relative, not by looking for a slash: this used to
+    resolve a local default under HERE, so the repo always contained slashes and
+    the old `"/" not in repo` check never fired - a missing directory fell
+    through to the backend and surfaced as a decoder exception rather than a
+    sentence about the path. The default is a remote repo now, so this only
+    fires for a --model path the user passed.
     """
     path = pathlib.Path(repo)
     return path.is_absolute() and not path.exists()

@@ -14,14 +14,12 @@ prep and both backends, `transcript.py` holds segments and output formats,
 is argparse; an earlier version hand-parsed `--flag=value` out of `sys.argv`
 and could not take positional args safely.
 
-`setup.sh` is the only shell script and stays one because it builds the venv
-everything else runs inside. `build_flix_ct2.sh` was a bash wrapper around a
-Python heredoc and is now `build_ct2.py`, which takes any HF repo id, URL or
-local checkpoint and defaults to the flix model. It is **no longer on the happy
-path** — the default model needs no conversion — but it is the commercial escape
-hatch, so it stays. The conversion is all-or-nothing via a temp directory,
-because `asr.missing_local` only asks whether the directory exists and one that
-exists but is incomplete reports as built.
+`setup.sh` is the only shell script, and now the only script that is not
+`run.py` and its four modules. There was a `build_ct2.py` that converted a
+transformers checkpoint to CTranslate2; **it was deleted on 2026-08-20** along
+with the 2.9 GB `flix-ct2/` it produced, because the default model ships
+already-converted and nothing needed it. It is in git history at `47d56af` if a
+local conversion is ever wanted again — `git show 47d56af:build_ct2.py`.
 
 **The model comparison is gone.** `run.py` ran a four-model registry with
 `--all` and wrote `out/_timings.tsv`; that was prototype scaffolding, it picked
@@ -34,9 +32,8 @@ exists but is incomplete reports as built.
   no NVIDIA GPU, slowly. `setup.sh` picks CUDA or CPU torch wheels the same way.
 - `transformers` resolved to **5.15.1** — the major-version jump was tested, both
   the chunked and `--longform` HF paths work. Deliberately left unpinned.
-- `flix-ct2/` is built and present (2.9 GB, gitignored). **Nothing uses it by
-  default any more** — see below. It is 3 GB that can be deleted and rebuilt
-  with `./build_ct2.py` if the disk is wanted.
+- **No model is stored in the repo.** The default is pulled from HF on first
+  run and cached in `~/.cache/huggingface` (1.6 GB).
 - Last measured: the 25 min interview in 48 s + 3 s diarization
 - **Git repo initialised 2026-08-20**, no remote. `.gitignore` excludes the
   recordings, everything derived from them, and the model weights. Before adding
@@ -65,7 +62,10 @@ The two decisions most likely to get second-guessed:
   2 minutes, the turbo model is 3× faster, needs no build step, and matches on
   content — see the top of `docs/findings.md`. This is a school project and
   CC-BY-NC permits coursework. **It does not permit billable work.** If that
-  changes, `./build_ct2.py && --model ./flix-ct2` is the whole switch.
+  changes, `--model Flix-AI/flix-swissgerman-full --longform` is the switch —
+  the transformers backend, no conversion. `docs/findings.md` measured that path
+  working at 42 s on the 2 min clip against `flix-ct2`'s 22 s; it has **not**
+  been re-run since the converter was deleted.
 
 ## Conventions that exist for a reason
 

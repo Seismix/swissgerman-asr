@@ -7,7 +7,7 @@ full 25 minute run. Two speakers, quiet room, single mono track.
 default model; `run.py` no longer compares models, and the four-way bench that
 produced the early numbers is gone. Kept because the conclusions are the reason
 for the current default, and re-deriving them costs GPU hours. `--model` still
-points at anything else, and `./build_ct2.py` converts it.
+points at anything else.
 
 ## Turbo vs flix, on the whole interview
 

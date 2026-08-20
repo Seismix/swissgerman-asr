@@ -218,8 +218,9 @@ def main(argv=None):
         sys.exit(str(e))
 
     if asr.missing_local(repo):
-        sys.exit(f"{repo} does not exist.\nRun ./build_ct2.py to convert a "
-                 f"model into it, or drop --model to use the default.")
+        sys.exit(f"{repo} does not exist.\nPass a --model that does - a "
+                 f"converted directory, an HF repo id, or a huggingface.co "
+                 f"URL - or drop --model to use the default.")
 
     device = asr.resolve_device(a.device)
     if a.device == "auto":
