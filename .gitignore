@@ -1,0 +1,26 @@
+# Recordings and anything derived from them. data/ holds a named, identifiable
+# person who consented to be interviewed, not to be distributed - see
+# data/README.md. Never commit it, and never commit audio from anywhere else
+# either: the *.wav/*.m4a/*.mp3 rules are a second line of defence in case a
+# file lands outside data/.
+data/
+out/
+cache/
+*.wav
+*.m4a
+*.mp3
+
+# Model weights. flix-ct2/ is 2.9 GB, built by ./build_flix_ct2.sh; models/
+# holds the ECAPA checkpoints, downloaded on first --diarize run. flix-src/ is
+# the HF checkout build_flix_ct2.sh converts from.
+flix-ct2/
+flix-src/
+models/
+
+# Environment, built by ./setup.sh
+.venv/
+.env
+
+# Python
+__pycache__/
+*.py[cod]
