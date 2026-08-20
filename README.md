@@ -16,8 +16,21 @@ Optionally labels who is speaking.
 ./setup.sh
 ```
 
-Needs `ffmpeg` and Python 3. Picks CUDA or CPU torch wheels automatically. There
-is no build step; the first run pulls the 1.6 GB model and caches it.
+Needs `ffmpeg` and Python 3. Picks CUDA, ROCm or CPU torch wheels automatically;
+`FLAVOUR=cpu ./setup.sh` overrides that. There is no build step — the first run
+pulls the 1.6 GB model and caches it.
+
+## AMD GPUs
+
+The default model runs on **CPU** — CTranslate2 has no ROCm backend, and no
+flag changes that. To use the card, switch models:
+
+```bash
+python run.py interview.m4a --model Flix-AI/flix-swissgerman-full --longform
+```
+
+That one is Apache-2.0, so the CC-BY-NC note above doesn't apply. Needs a native
+Linux install, not WSL.
 
 ## Use
 
@@ -44,7 +57,7 @@ python run.py interview.m4a --clip 5:00-7:00        # one span only
 python run.py interview.m4a --format srt --format md   # also vtt, json; repeatable
 python run.py interview.m4a --out results/
 python run.py interview.m4a --model Owner/Name      # any HF repo, URL or local dir
-python run.py interview.m4a --device cpu
+python run.py interview.m4a --device cpu             # or cuda, rocm
 ```
 
 `python run.py --help` lists the rest.

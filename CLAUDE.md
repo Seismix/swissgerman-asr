@@ -29,7 +29,19 @@ local conversion is ever wanted again — `git show 47d56af:build_ct2.py`.
 
 - WSL Ubuntu 24.04, `.venv` built by `setup.sh`, CUDA verified on an RTX 4060 Laptop
 - **Device is auto-detected** (`--device auto`), so this runs on a machine with
-  no NVIDIA GPU, slowly. `setup.sh` picks CUDA or CPU torch wheels the same way.
+  no NVIDIA GPU, slowly. `setup.sh` picks CUDA, ROCm or CPU torch wheels the
+  same way, and `FLAVOUR=cpu ./setup.sh` overrides it.
+- **AMD was added on 2026-08-20 and has never run on real AMD hardware.** The
+  ROCm branches were exercised by setting `torch.version.hip` on a CUDA box,
+  which proves the routing and nothing about the kernels. The trap it exists to
+  close: a ROCm build of torch reuses the whole `torch.cuda` namespace, so
+  `torch.cuda.is_available()` is True on a Radeon and the old `resolve_device`
+  handed `"cuda"` to CTranslate2 — which has no AMD backend at all — one line
+  after printing `device: cuda (AMD Radeon ...)`. `asr.gpu_kind()` reads
+  `torch.version.hip` to tell the builds apart, and `resolve_device` now returns
+  **two** devices: CPU for CTranslate2, GPU for everything torch-side, so an AMD
+  box keeps GPU diarization. `run.py` rejects `--device cuda`/`rocm` on the `fw`
+  backend up front rather than letting it fail at model load.
 - `transformers` resolved to **5.15.1** — the major-version jump was tested, both
   the chunked and `--longform` HF paths work. Deliberately left unpinned.
 - **No model is stored in the repo.** The default is pulled from HF on first

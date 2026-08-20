@@ -79,21 +79,70 @@ COMPUTE_TYPES = {
 }
 
 
-def resolve_device(name="auto"):
-    if name != "auto":
-        return name
+# What to say when a Radeon turns up and the CTranslate2 backend cannot use it.
+ROCM_HELP = (
+    "CTranslate2 has no AMD backend - it takes cuda and cpu, and rejects both "
+    "rocm and hip - so no converted model can run on a Radeon.\n"
+    "The transformers backend can, because it is only torch:\n"
+    "  python run.py AUDIO --model Flix-AI/flix-swissgerman-full --longform\n"
+    "That model is Apache-2.0, so the default's non-commercial restriction does "
+    "not apply to it either. See docs/licensing.md.")
+
+
+def gpu_kind():
+    """'cuda', 'rocm' or None - what torch can see, not what CT2 can use.
+
+    A ROCm build of torch reuses the whole torch.cuda namespace. On a Radeon,
+    torch.cuda.is_available() is True and get_device_name(0) says "AMD Radeon",
+    so believing it printed "device: cuda (AMD Radeon ...)" and then handed
+    "cuda" to CTranslate2 - which fails at model load, one line after the tool
+    announced a GPU. torch.version.hip is the only thing that separates the two
+    builds, and it is unset on a real CUDA one.
+    """
     try:
         import torch
-        return "cuda" if torch.cuda.is_available() else "cpu"
     except ImportError:
-        return "cpu"
+        return None
+    if not torch.cuda.is_available():
+        return None
+    return "rocm" if getattr(torch.version, "hip", None) else "cuda"
 
 
-def describe_device(device):
-    if device != "cuda":
-        return "cpu (no CUDA GPU found - this will be slow)"
-    import torch
-    return f"cuda ({torch.cuda.get_device_name(0)})"
+def resolve_device(name="auto", backend="fw"):
+    """-> (asr_device, torch_device). The same string except on AMD.
+
+    ROCm runs everything torch-side, so a Radeon still does the ECAPA
+    embeddings, and still does transcription on the transformers backend. Only
+    CTranslate2 has to fall back. Returning one device for both is what would
+    make that fallback cost diarization its GPU as well, for no reason.
+
+    "rocm" is accepted as a --device spelling because it is the obvious thing
+    to try on an AMD box; torch itself only answers to "cuda".
+    """
+    if name == "rocm":
+        return "cuda", "cuda"
+    if name != "auto":
+        return name, name
+    kind = gpu_kind()
+    if kind is None:
+        return "cpu", "cpu"
+    if kind == "rocm" and backend == "fw":
+        return "cpu", "cuda"
+    return "cuda", "cuda"
+
+
+def describe_device(device, torch_device=None):
+    """One header line: what is about to run where, and why if it is not obvious."""
+    kind = gpu_kind()
+    if device == "cuda":
+        import torch
+        return f"{'rocm' if kind == 'rocm' else 'cuda'} ({torch.cuda.get_device_name(0)})"
+    if kind == "rocm":
+        import torch
+        also = " Diarization still runs on the GPU." if torch_device == "cuda" else ""
+        return (f"cpu - {torch.cuda.get_device_name(0)} is visible through ROCm, "
+                f"but CTranslate2 has no AMD backend.{also}")
+    return "cpu (no GPU found - this will be slow)"
 
 
 def parse_time(s):

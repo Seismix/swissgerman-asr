@@ -66,8 +66,12 @@ def build_parser():
                    help="one paragraph per speaker turn (needs speaker labels)")
 
     m = p.add_argument_group("machine")
-    m.add_argument("--device", default="auto", choices=["auto", "cuda", "cpu"],
-                   help="auto detects CUDA and falls back to CPU (default)")
+    m.add_argument("--device", default="auto",
+                   choices=["auto", "cuda", "rocm", "cpu"],
+                   help="auto detects an NVIDIA or AMD GPU and falls back to "
+                        "CPU (default). rocm is an alias for cuda, which is "
+                        "what torch calls a Radeon; CTranslate2 models cannot "
+                        "use one either way")
     m.add_argument("--compute-type", default=None, metavar="T",
                    help="CTranslate2 precision, e.g. int8_float16, float16, "
                         "int8. Default depends on --device. CTranslate2 models "
@@ -222,9 +226,18 @@ def main(argv=None):
                  f"converted directory, an HF repo id, or a huggingface.co "
                  f"URL - or drop --model to use the default.")
 
-    device = asr.resolve_device(a.device)
+    device, torch_device = asr.resolve_device(a.device, backend)
+
+    # Rejected here rather than at model load, where it arrives as a CTranslate2
+    # exception right after the header line has announced a GPU.
+    if backend == "fw" and (a.device == "rocm" or
+                            (device == "cuda" and asr.gpu_kind() == "rocm")):
+        why = ("there is no such CTranslate2 device" if a.device == "rocm" else
+               "torch reports a GPU here only because it is a ROCm build")
+        sys.exit(f"--device {a.device} cannot run {key}: it is a CTranslate2 "
+                 f"model, and {why}.\n{asr.ROCM_HELP}")
     if a.device == "auto":
-        print(f"device: {asr.describe_device(device)}")
+        print(f"device: {asr.describe_device(device, torch_device)}")
 
     ident = asr.source_id(src, clip)
     wav = asr.to_wav16k(src, clip)
@@ -259,8 +272,10 @@ def main(argv=None):
     if a.diarize:
         t1 = time.time()
         try:
+            # torch_device, not device: on AMD the embeddings run on the GPU
+            # even when CTranslate2 has pushed transcription back to the CPU.
             labels, stats = diarize.label(wav, segs, a.speakers, names,
-                                          device=device, offset=offset,
+                                          device=torch_device, offset=offset,
                                           **diar_opts(a))
             print(f"  diarize {time.time() - t1:.0f}s  {stats}")
         except Exception as e:

@@ -44,6 +44,8 @@ def embed(wav, segments, device="cuda", offset=0.0):
     if audio.ndim > 1:
         audio = audio.mean(axis=1)
     # speechbrain 1.1 cannot parse a bare "cuda" and falls back with a warning.
+    # "cuda" is also what a ROCm build of torch calls a Radeon, so this is the
+    # GPU path on AMD too - unlike asr.run_fw, which has no AMD backend at all.
     dev = "cuda:0" if device == "cuda" else device
     enc = EncoderClassifier.from_hparams(source=ECAPA, savedir=str(SAVEDIR),
                                          run_opts={"device": dev})

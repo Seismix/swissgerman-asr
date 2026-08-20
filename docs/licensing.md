@@ -35,7 +35,9 @@ python run.py interview.m4a --model Flix-AI/flix-swissgerman-full --longform
 ```
 
 No conversion step: that runs it on the transformers backend straight from the
-hub (~3 GB). `--longform` is not optional here — without it the chunked pipeline
+hub (~3 GB). It is also **the only path that uses an AMD GPU** — CTranslate2 has
+no ROCm backend, so on a Radeon the default model is CPU-only and this one is
+not. `--longform` is not optional here — without it the chunked pipeline
 returns three segments of up to 267 words, which diarizes badly. See
 [findings.md](findings.md).
 
