@@ -52,7 +52,7 @@ turnaround.
 If the conversion is wanted back, `build_ct2.py` is in git history:
 
 ```bash
-git show 47d56af:build_ct2.py > build_ct2.py && chmod +x build_ct2.py
+git show 5fb0842:build_ct2.py > build_ct2.py && chmod +x build_ct2.py
 ```
 
 ## Mislabelled clones

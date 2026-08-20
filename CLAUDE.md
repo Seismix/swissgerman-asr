@@ -18,8 +18,8 @@ and could not take positional args safely.
 `run.py` and its four modules. There was a `build_ct2.py` that converted a
 transformers checkpoint to CTranslate2; **it was deleted on 2026-08-20** along
 with the 2.9 GB `flix-ct2/` it produced, because the default model ships
-already-converted and nothing needed it. It is in git history at `47d56af` if a
-local conversion is ever wanted again — `git show 47d56af:build_ct2.py`.
+already-converted and nothing needed it. It is in git history at `5fb0842` if a
+local conversion is ever wanted again — `git show 5fb0842:build_ct2.py`.
 
 **The model comparison is gone.** `run.py` ran a four-model registry with
 `--all` and wrote `out/_timings.tsv`; that was prototype scaffolding, it picked
