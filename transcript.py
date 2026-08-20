@@ -15,13 +15,29 @@ class Seg(NamedTuple):
 
 
 def clock(t, ms=False, sep=","):
-    """Seconds -> HH:MM:SS, optionally with subtitle-style milliseconds."""
+    """Seconds -> HH:MM:SS, optionally with subtitle-style milliseconds.
+
+    Rounded to milliseconds *once*, up front. Flooring the seconds field and
+    rounding the millisecond field separately lets the two disagree across a
+    whole second: 1.9998 came out as `00:00:01,1000`, a four-digit millisecond
+    field that a subtitle parser rejects.
+    """
     t = max(0.0, float(t or 0))
-    h, rem = divmod(t, 3600)
-    m, s = divmod(rem, 60)
     if not ms:
-        return f"{int(h):02d}:{int(m):02d}:{int(s):02d}"
-    return f"{int(h):02d}:{int(m):02d}:{int(s):02d}{sep}{int(round(s % 1 * 1000)):03d}"
+        # Floored, deliberately: a displayed segment timestamp names the second
+        # the segment starts in, and rounding it would move every timestamp
+        # already quoted in docs/ by up to a second.
+        h, m, s, _ = _hms(int(t) * 1000)
+        return f"{h:02d}:{m:02d}:{s:02d}"
+    h, m, s, msec = _hms(int(round(t * 1000)))
+    return f"{h:02d}:{m:02d}:{s:02d}{sep}{msec:03d}"
+
+
+def _hms(total_ms):
+    h, rem = divmod(total_ms, 3_600_000)
+    m, rem = divmod(rem, 60_000)
+    s, msec = divmod(rem, 1000)
+    return h, m, s, msec
 
 
 def merge_turns(segs, labels=None):

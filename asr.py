@@ -1,4 +1,5 @@
 """Model registry, audio preparation, and the two decoding backends."""
+import hashlib
 import pathlib
 import subprocess
 
@@ -75,26 +76,58 @@ def parse_clip(s):
     return start, end
 
 
+def source_id(src: pathlib.Path, clip=None) -> dict:
+    """What makes decoded audio reusable: which bytes, and which span of them.
+
+    Keying a cache on the filename alone is not enough. `raw/talk.m4a` and
+    `clean/talk.m4a` share a stem, as do `talk.m4a` and `talk.wav`, and a source
+    re-exported in place keeps its name while its contents change. Any of those
+    served another recording's audio from cache, silently.
+    """
+    st = src.stat()
+    return {"path": str(src.resolve()), "size": st.st_size,
+            "mtime_ns": st.st_mtime_ns,
+            "clip": [clip[0], clip[1]] if clip else None}
+
+
+def _digest(ident: dict) -> str:
+    raw = f"{ident['path']}|{ident['size']}|{ident['mtime_ns']}|{ident['clip']}"
+    return hashlib.sha256(raw.encode()).hexdigest()[:8]
+
+
 def to_wav16k(src: pathlib.Path, clip=None) -> pathlib.Path:
     """Decode to 16 kHz mono PCM once, into cache/, never beside the source.
 
-    The clip range is part of the cache name, so two spans of one recording do
-    not overwrite each other.
+    The source is often in a synced folder; a stray 48 MB WAV beside it syncs,
+    and on a shared folder shows up for other people.
     """
     CACHE.mkdir(exist_ok=True)
-    tag = ""
     trim = []
+    tag = ""
     if clip:
         start, end = clip
         tag = f".{start:g}-{end:g}" if end is not None else f".{start:g}-"
         trim = ["-ss", str(start)] + (["-to", str(end)] if end is not None else [])
-    dst = CACHE / f"{src.stem}{tag}.16k.wav"
-    if not dst.exists():
-        print(f"[ffmpeg] {src.name}{tag or ''} -> {dst.name}")
-        subprocess.run(["ffmpeg", "-y", *trim, "-i", str(src), "-ac", "1",
-                        "-ar", "16000", "-c:a", "pcm_s16le", str(dst)],
-                       check=True, stdout=subprocess.DEVNULL,
-                       stderr=subprocess.DEVNULL)
+    dst = CACHE / f"{src.stem}{tag}.{_digest(source_id(src, clip))}.16k.wav"
+    if dst.exists():
+        return dst
+
+    # Decode to .part and rename on success. `ffmpeg -y` creates its output
+    # before it can fail, so a decode killed partway (truncated source, full
+    # disk, Ctrl-C) used to leave a short wav that `dst.exists()` accepted for
+    # every later run - half a recording transcribed, timestamps looking normal,
+    # nothing raised. os.replace is atomic within a filesystem, and cache/ is.
+    print(f"[ffmpeg] {src.name}{tag or ''} -> {dst.name}")
+    part = dst.with_name(dst.name + ".part")
+    r = subprocess.run(["ffmpeg", "-y", *trim, "-i", str(src), "-ac", "1",
+                        "-ar", "16000", "-c:a", "pcm_s16le", "-f", "wav",
+                        str(part)],
+                       capture_output=True, text=True)
+    if r.returncode != 0:
+        part.unlink(missing_ok=True)
+        tail = "\n    ".join(r.stderr.strip().splitlines()[-4:])
+        raise RuntimeError(f"ffmpeg could not decode {src}:\n    {tail}")
+    part.replace(dst)
     return dst
 
 
@@ -109,9 +142,14 @@ def run_fw(repo, wav, offset=0.0, device="cuda", compute_type=None):
     return [Seg(s.start + offset, s.end + offset, s.text.strip()) for s in segs]
 
 
-def run_hf(repo, wav, longform=False, offset=0.0, device="cuda",
-           compute_type=None):
-    """transformers backend. Slower, more VRAM, but no conversion step."""
+def run_hf(repo, wav, longform=False, offset=0.0, device="cuda"):
+    """transformers backend. Slower, more VRAM, but no conversion step.
+
+    Takes no compute_type: precision here follows the device, and accepting the
+    argument only to drop it made `--compute-type int8` look like it had been
+    applied while the run and its recorded timing were fp16. See
+    `unsupported_compute_type`.
+    """
     import torch
     from transformers import AutoModelForSpeechSeq2Seq, AutoProcessor, pipeline
     # fp16 matmuls are not implemented for most CPU kernels, so CPU gets fp32.
@@ -144,12 +182,26 @@ def run_hf(repo, wav, longform=False, offset=0.0, device="cuda",
             for c in r["chunks"]]
 
 
+def unsupported_compute_type(keys, compute_type):
+    """Model keys that would silently ignore --compute-type.
+
+    It is a CTranslate2 setting. The transformers backend picks precision from
+    the device, so passing one there changed nothing while _timings.tsv - the
+    artifact this tool exists to produce - recorded the run as if it had.
+    Checked up front, because the alternative is finding out after a decode.
+    """
+    if not compute_type:
+        return []
+    return [k for k in keys if MODELS[k][1] != "fw"]
+
+
 def transcribe(key, wav, longform=False, offset=0.0, device="cuda",
                compute_type=None):
     repo, backend, _, _ = MODELS[key]
     if backend == "fw":
         return run_fw(repo, wav, offset, device, compute_type)
-    return run_hf(repo, wav, longform, offset, device, compute_type)
+    assert not compute_type, "run.py should have rejected this up front"
+    return run_hf(repo, wav, longform, offset, device)
 
 
 def missing_local(key):
