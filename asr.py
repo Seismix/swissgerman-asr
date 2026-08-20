@@ -8,18 +8,22 @@ from transcript import Seg
 HERE = pathlib.Path(__file__).resolve().parent
 CACHE = HERE / "cache"
 
-# One model, not a bench. The four-way comparison this started as was prototype
-# work: it picked flix-ct2 and there is no reason to keep re-running it. What
-# survives is the ability to point at something else - see docs/findings.md for
-# what that comparison concluded, and ./build_ct2.py to convert another model.
-DEFAULT_MODEL = str(HERE / "flix-ct2")
+# One model, not a bench. Already in CTranslate2 form on the hub, so there is no
+# build step: faster-whisper pulls 1.6 GB on first run and caches it.
+#
+# CC-BY-NC-4.0. Fine for coursework and personal research, NOT for commercial
+# work - docs/licensing.md has the chain and ./build_ct2.py builds the
+# Apache-2.0 alternative if you need one. docs/findings.md has the measurements
+# that chose it.
+DEFAULT_MODEL = "OSTswiss/whisper-large-v3-turbo-swiss-german-ct2"
 
 
 def parse_model_spec(spec=None):
     """-> (repo, key). A local directory, an HF repo id, or a hf.co URL.
 
-    `key` names the output files, so the default resolves to "flix-ct2" and
-    out/flix-ct2.txt keeps the name it has always had.
+    `key` is the last path/repo segment and names the output files, so the
+    default writes out/whisper-large-v3-turbo-swiss-german-ct2.txt. Long, but
+    derived by a rule rather than a lookup table, so it stays true for --model.
     """
     spec = str(spec or DEFAULT_MODEL).strip()
     if "://" in spec:
@@ -44,14 +48,27 @@ def parse_model_spec(spec=None):
 def detect_backend(repo):
     """CTranslate2 if it looks like a converted model, transformers otherwise.
 
-    A CTranslate2 directory always has model.bin at its root; a transformers
-    checkpoint never does. A remote repo is assumed to be transformers, which
-    is what --backend is for when it is not.
+    A CTranslate2 model always has model.bin at its root; a transformers
+    checkpoint never does - it has *.safetensors. That test works on the hub as
+    well as on disk, so a repo that is *already* converted can be used straight
+    from HF with no local build step.
+
+    The cache is consulted before the network so this still answers offline once
+    the model has been pulled. If neither works we say "hf", which is the safe
+    wrong answer: the transformers backend refuses a CTranslate2 repo loudly,
+    where faster-whisper on a transformers repo fails deeper in. --backend
+    overrides either way.
     """
     path = pathlib.Path(repo)
     if path.is_dir():
         return "fw" if (path / "model.bin").exists() else "hf"
-    return "hf"
+    try:
+        from huggingface_hub import list_repo_files, try_to_load_from_cache
+        if try_to_load_from_cache(repo, "model.bin"):
+            return "fw"
+        return "fw" if "model.bin" in list_repo_files(repo) else "hf"
+    except Exception:
+        return "hf"
 
 
 # Everything below assumed a CUDA box. It is resolved once at startup instead,

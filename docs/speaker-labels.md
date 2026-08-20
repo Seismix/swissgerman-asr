@@ -2,8 +2,9 @@
 
 Implemented in `diarize.py`. `python run.py audio.m4a --names Anna Beat`
 writes `out/<key>.speakers.txt` alongside the unlabelled `out/<key>.txt`.
-Add `--merge-turns` for one paragraph per turn, which is the readable form:
-188 segments become 48 turns, against 47 in the hand-written docx.
+Add `--merge-turns` for one paragraph per turn, which is the readable form: on
+the default model 90 segments become 42 turns, against 46 in the hand-written
+docx.
 
 Segment → ECAPA embedding → L2-normalise → agglomerative clustering with cosine
 distance at a fixed `n_clusters`. `speechbrain/spkrec-ecapa-voxceleb`,
@@ -21,24 +22,44 @@ silent: the clustering is still right, only the names are swapped.
 edited prose, see `data/README.md` — but *who spoke* survives editing, so it
 works for this and nothing else does.
 
-| | |
-| --- | --- |
-| `clip.wav`, 18 segments | 18/18, all 5 turn boundaries correct |
-| `interview-full.m4a`, 188 segments | **97.2 %** (140/144 placeable) |
-| centroid cosine distance | 0.846 |
-| cost | 6 s on top of 154 s transcription |
+On `interview-full.m4a`, by ASR model — **the diarization is identical code and
+the same embeddings; only the segmentation it is handed differs**:
 
-**The 97.2 % is the honest number; the raw figure is 89.9 %.** The docx is not
-timestamp-aligned, so segments are matched to turns by monotonic DP on
-content-word overlap, and that aligner is the weaker half of the measurement.
-44 of 188 segments share no content words with any turn and cannot be placed at
-all. Hand-checking every flagged segment against the docx text, most
-"mismatches" are the aligner drifting, not the labelling — `[00:08:04]`,
-`[00:13:57]`, `[00:16:32]` and `[00:23:15]` are all cases where the label is
-right and the alignment is wrong. Only the two closing segments were confirmed
-genuine errors, and those are fixed (below).
+| | default (turbo) | flix-ct2 |
+| --- | --- | --- |
+| segments | 90 | 188 |
+| confidently aligned | **98.6 %** (71/72) | 97.2 % (140/144) |
+| all segments | 96.7 % (87/90) | 89.9 % (169/188) |
+| unplaceable | 18 | 44 |
+| centroid cosine distance | 0.845 | 0.846 |
+| cost | 3 s on top of 48 s | 6 s on top of 154 s |
 
-Don't quote a single accuracy figure from this without saying which one.
+**Those two columns are not comparable and the higher number is not an
+improvement.** The scorer aligns segments to 47 reference turns, and 90 long
+segments are far easier to place than 188 short ones, so the model that
+segments more coarsely scores better without labelling anything better. The
+honest cross-model signal is centroid cosine distance, unchanged at 0.845 vs
+0.846 — the embeddings never saw the ASR model's output.
+
+**Within one model, quote the confidently-aligned figure; the raw one is
+pessimistic.** The docx is not timestamp-aligned, so segments are matched to
+turns by monotonic DP on content-word overlap, and that aligner is the weaker
+half of the measurement. Hand-checking every flagged segment against the docx
+text, most "mismatches" are the aligner drifting, not the labelling. On
+flix-ct2, `[00:08:04]`, `[00:13:57]`, `[00:16:32]` and `[00:23:15]` are all
+cases where the label is right and the alignment is wrong; only the two closing
+segments were confirmed genuine errors, and those are fixed (below). All three
+of turbo's mismatches are backchannels ("Wow, ja.", "Okay, ja, genau.") that the
+aligner places at conf 0.00–0.40.
+
+Don't quote a single accuracy figure from this without saying which one, and
+which model produced the segments.
+
+The rest of this section is measured on **flix-ct2**, whose finer segmentation
+is what exposed these effects; turbo's 90 coarser segments show none of them
+(0 of its mismatches rest on a single shared word, and it has 2 short segments
+against flix-ct2's 7). The mechanism is unchanged, so it will come back on any
+model that segments finely.
 
 The `conf >= 0.30` gate is a *ratio* — shared content words over the segment's
 content words — with no floor on how many words that is. A segment with one
@@ -65,7 +86,8 @@ shared-word count per mismatch so this is visible instead of inferred.
 
 This doc used to say a sub-1.5 s segment has too little voice to embed and must
 take a neighbour's label. **Noisy is not the same as useless.** Measured on the
-7 short segments in the full interview, by how much closer to one centroid the
+7 short segments flix-ct2 produces on the full interview (turbo produces 2, and
+takes neither from a neighbour, so this table is not reachable on the default), by how much closer to one centroid the
 short segment's own embedding must sit before it is trusted over the neighbour:
 
 | `MARGIN` | short from neighbour | placeable | closing 2 segments |

@@ -6,8 +6,10 @@
     python run.py audio.m4a --model openai/whisper-large-v3
     python run.py audio.m4a --model ./other-ct2
 
-Defaults to ./flix-ct2, which ./build_ct2.py produces. --model also takes an
-HF repo id, a huggingface.co URL, or another converted directory.
+Defaults to a CTranslate2 Swiss German model pulled straight from HuggingFace -
+no build step. It is CC-BY-NC: fine for coursework, not for commercial work, see
+docs/licensing.md. --model takes any HF repo id, huggingface.co URL, or local
+converted directory.
 
 Transcripts land in out/<model-name>.txt. Decoded audio is cached in cache/ so
 the source directory is never written to.
@@ -44,10 +46,11 @@ def build_parser():
     p.add_argument("audio", nargs="?", help="any format ffmpeg reads")
     p.add_argument("--model", default=None, metavar="SPEC",
                    help="converted directory, HF repo id, or huggingface.co "
-                        "URL (default: ./flix-ct2)")
+                        "URL (default: the CC-BY-NC turbo model)")
     p.add_argument("--backend", default="auto", choices=["auto", "fw", "hf"],
                    help="fw = CTranslate2, hf = transformers. auto picks fw "
-                        "for a directory containing model.bin (default)")
+                        "when the model has model.bin at its root, on disk or "
+                        "on the hub (default)")
     p.add_argument("--longform", action="store_true",
                    help="HF backend: Whisper's sequential algorithm")
     p.add_argument("--clip", metavar="START-END",
@@ -215,8 +218,8 @@ def main(argv=None):
         sys.exit(str(e))
 
     if asr.missing_local(repo):
-        sys.exit(f"{repo} does not exist.\nRun ./build_ct2.py to create it, or "
-                 f"pass --model.")
+        sys.exit(f"{repo} does not exist.\nRun ./build_ct2.py to convert a "
+                 f"model into it, or drop --model to use the default.")
 
     device = asr.resolve_device(a.device)
     if a.device == "auto":

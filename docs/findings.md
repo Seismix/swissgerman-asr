@@ -3,11 +3,59 @@
 Measured on 2 minutes of clean lavalier-mic dialect interview audio plus one
 full 25 minute run. Two speakers, quiet room, single mono track.
 
-**This records a comparison that has been run and closed.** It selected the
+**This records comparisons that have been run and closed.** They selected the
 default model; `run.py` no longer compares models, and the four-way bench that
-produced these numbers is gone. Kept because the conclusions are the reason for
-the current default, and re-deriving them costs GPU hours. `--model` still
+produced the early numbers is gone. Kept because the conclusions are the reason
+for the current default, and re-deriving them costs GPU hours. `--model` still
 points at anything else, and `./build_ct2.py` converts it.
+
+## Turbo vs flix, on the whole interview
+
+The four-way bench ran on 2 minutes and chose `flix-ct2` on licence. Re-run
+head-to-head on the full 25 minute interview, the quality gap it was protecting
+against is not there.
+
+| | turbo (default) | flix-ct2 |
+| --- | --- | --- |
+| licence | CC-BY-NC-4.0 | Apache-2.0 |
+| download | 1.6 GB, already CTranslate2 | 3 GB + local conversion |
+| full interview | **48 s** | 154 s |
+| segments | 90 (median 33 w) | 188 (median 17 w) |
+| words | 3388 | 3639 |
+| turns after `--merge-turns` | 42 | 48 |
+| docx content-word recall | **56.1 %** | 55.7 % |
+
+**The 251-word gap is filler, not content.** Turbo emits 7 % fewer words but
+recalls marginally *more* of the reference's content words, so what it drops is
+the hesitation and repetition that the human transcriber dropped too. That is
+the one result worth double-checking, because omission is this pipeline's
+dangerous failure mode — measured here, it is not biting.
+
+**Proper nouns are a wash, which is the same conclusion the four-way bench
+reached.** Neither model dominates; they fail on different words.
+
+| | docx | flix-ct2 | turbo |
+| --- | --- | --- | --- |
+| Bassersdorf | 1 | ✗ `Passersdorf` | ✓ |
+| Schienennetz | 2 | ✓ ✓ | ✗ |
+| Störung | 3 | 1 | 2 |
+| Winterthur | 4 | 2 | 1 |
+| Brütten | 1 | ✗ `Brütner` | ✗ `Brüttner` |
+| Effretikon | 1 | ✗ `Effi` | ✗ `Effi` |
+| Trassee | 3 | ✗ | ✗ |
+
+**Where turbo is genuinely worse: turn granularity.** Its longer segments
+swallow short backchannels, so `--merge-turns` yields 42 turns against the
+docx's 46, where flix-ct2's finer segmentation yields 48. Over-segmenting is the
+recoverable direction; a swallowed turn is not. Four turns over 25 minutes was
+judged an acceptable price for 3× the speed and no build step.
+
+**Do not compare the two diarization scores directly.** Turbo scores 96.7 % raw
+/ 98.6 % confidently-aligned against flix-ct2's 89.9 % / 97.2 %, but that is
+mostly the *scorer*: it aligns segments to 47 reference turns, and 90 long
+segments are far easier to place than 188 short ones. The honest signal is
+centroid cosine distance, which is unchanged at 0.845 vs 0.846 — the voices
+separate exactly as well, because the embeddings never depended on the ASR model.
 
 ## Fine-tuning buys less than the model cards suggest
 

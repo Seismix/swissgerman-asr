@@ -31,8 +31,8 @@ import sys
 HERE = pathlib.Path(__file__).resolve().parent
 VENV = HERE / ".venv" / "bin" / "python"
 
-# asr.MODELS["flix-ct2"] points at HERE/"flix-ct2", so this pair has to stay in
-# step with the registry.
+# asr.DEFAULT_MODEL is HERE/"flix-ct2", so this pair has to stay in step: the
+# default build has to land where run.py looks by default.
 DEFAULT_REPO = "Flix-AI/flix-swissgerman-full"
 DEFAULT_OUT = "flix-ct2"
 

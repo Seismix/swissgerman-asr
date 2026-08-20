@@ -1,22 +1,28 @@
 # swissgerman-asr
 
 Swiss German speech in, **Standard German** text out. Local, no GPU required
-but much faster with one. 25 minutes of audio transcribes in about 2½ minutes
-on an RTX 4060 Laptop (measured 151–154 s), plus 6 s to label the speakers.
+but much faster with one. 25 minutes of audio transcribes in about 50 s on an
+RTX 4060 Laptop (measured 48 s), plus 3 s to label the speakers.
+
+> **The default model is CC-BY-NC-4.0.** Coursework and personal research are
+> fine; anything a client pays for is not. [licensing.md](docs/licensing.md) has
+> the one-line switch to an Apache-2.0 model.
 
 ## Setup
 
 ```bash
 ./setup.sh            # venv + torch (CUDA or CPU wheels, auto) + faster-whisper
-./build_ct2.py        # one-time, ~3 GB download, produces ./flix-ct2
 ```
+
+There is no build step. The default model is already in CTranslate2 form on
+HuggingFace, so the first run pulls 1.6 GB and caches it.
 
 ## Run
 
 ```bash
 python run.py interview.m4a                       # the default model
 python run.py interview.m4a --model ./other-ct2   # another converted model
-python run.py interview.m4a --model Owner/Name --longform   # straight from HF
+python run.py interview.m4a --model Owner/Name --longform   # a transformers repo
 ```
 
 Speaker labels:
@@ -61,8 +67,8 @@ which works and is much slower. `setup.sh` picks matching torch wheels.
 | file | |
 | --- | --- |
 | `run.py` | CLI and orchestration |
-| `build_ct2.py` | one-time model conversion to CTranslate2 |
-| `asr.py` | model registry, audio prep, the two decoding backends |
+| `build_ct2.py` | optional: converts a transformers model to CTranslate2 |
+| `asr.py` | model resolution, audio prep, the two decoding backends |
 | `transcript.py` | segments, turn merging, output formats |
 | `diarize.py` | speaker embeddings and clustering |
 | `score_speakers.py` | dev tool: scores labels against a reference attribution |
@@ -70,15 +76,27 @@ which works and is much slower. `setup.sh` picks matching torch wheels.
 
 ## The model
 
-`./flix-ct2` — `Flix-AI/flix-swissgerman-full` converted to CTranslate2,
-**Apache-2.0**, built by `./build_ct2.py`. It is the default because it won a
-four-way comparison on licence, speed and quality; [findings.md](docs/findings.md)
-records what that comparison found and [licensing.md](docs/licensing.md) why the
-smaller, faster alternative was not chosen.
+`OSTswiss/whisper-large-v3-turbo-swiss-german-ct2` — **CC-BY-NC-4.0**, 1.6 GB,
+already CTranslate2 so nothing is built locally. It transcribes the 25 minute
+test interview in 48 s against the Apache-2.0 alternative's 154 s, for output
+[findings.md](docs/findings.md) measures as equivalent: identical content-word
+recall, proper-noun errors a wash, 7 % fewer words that are all filler.
+
+**It is non-commercial.** That is the whole reason this is a choice rather than
+an obvious default — see [licensing.md](docs/licensing.md). For anything
+billable:
+
+```bash
+./build_ct2.py && python run.py interview.m4a --model ./flix-ct2
+```
+
+That downloads `Flix-AI/flix-swissgerman-full` (~3 GB, **Apache-2.0**) and
+converts it locally, because no CTranslate2 export of it exists on the hub.
 
 `--model` takes any converted directory, HF repo id, or huggingface.co URL, and
 `./build_ct2.py <model>` converts another one. `--backend` picks CTranslate2 or
-transformers; `auto` decides by whether the directory holds a `model.bin`.
+transformers; `auto` decides by whether the model has `model.bin` at its root,
+on disk or on the hub.
 
 **Check the licence of anything you point it at.** Several Swiss German
 fine-tunes are CC-BY-NC, and at least one repo relabels one of them Apache-2.0
@@ -88,5 +106,5 @@ incorrectly.
 
 - [findings.md](docs/findings.md) — what these models actually do, and what to watch for
 - [rejected.md](docs/rejected.md) — approaches tested and dropped, with the measurements
-- [licensing.md](docs/licensing.md) — why `ct2` is non-commercial and its clones are mislabelled
+- [licensing.md](docs/licensing.md) — the default is non-commercial: what that permits, and the switch if it doesn't
 - [speaker-labels.md](docs/speaker-labels.md) — diarization: how it scores, and what it still can't do

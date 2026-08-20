@@ -13,8 +13,10 @@ there - and then used to parse the reference, so this works on any recording.
 """
 import re, sys, pathlib
 
+# Defaults to whatever run.py's default model writes. Pass a path for any other.
+import asr
 LABELLED = pathlib.Path(sys.argv[1] if len(sys.argv) > 1
-                        else "out/flix-ct2.speakers.txt")
+                        else f"out/{asr.parse_model_spec()[1]}.speakers.txt")
 DOCX = pathlib.Path(sys.argv[2] if len(sys.argv) > 2
                     else "data/transcripts/_docx_transkript.txt")
 

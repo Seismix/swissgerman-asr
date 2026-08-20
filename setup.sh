@@ -51,4 +51,4 @@ if want_cuda and not ok:
              "CUDA build was probably replaced by a PyPI wheel")
 EOF
 echo
-echo "next: ./build_flix_ct2.py   (one-time, ~3 GB download)"
+echo "next: python run.py AUDIO   (pulls the 1.6 GB model on first run)"

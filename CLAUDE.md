@@ -17,10 +17,11 @@ and could not take positional args safely.
 `setup.sh` is the only shell script and stays one because it builds the venv
 everything else runs inside. `build_flix_ct2.sh` was a bash wrapper around a
 Python heredoc and is now `build_ct2.py`, which takes any HF repo id, URL or
-local checkpoint and defaults to the flix model. The conversion is
-all-or-nothing via a temp directory, because `asr.missing_local` only asks
-whether the directory exists and one that exists but is incomplete reports as
-built.
+local checkpoint and defaults to the flix model. It is **no longer on the happy
+path** — the default model needs no conversion — but it is the commercial escape
+hatch, so it stays. The conversion is all-or-nothing via a temp directory,
+because `asr.missing_local` only asks whether the directory exists and one that
+exists but is incomplete reports as built.
 
 **The model comparison is gone.** `run.py` ran a four-model registry with
 `--all` and wrote `out/_timings.tsv`; that was prototype scaffolding, it picked
@@ -33,8 +34,10 @@ built.
   no NVIDIA GPU, slowly. `setup.sh` picks CUDA or CPU torch wheels the same way.
 - `transformers` resolved to **5.15.1** — the major-version jump was tested, both
   the chunked and `--longform` HF paths work. Deliberately left unpinned.
-- `flix-ct2/` is built and present (2.9 GB, gitignored)
-- Last measured: 2 min of audio in 21–22 s
+- `flix-ct2/` is built and present (2.9 GB, gitignored). **Nothing uses it by
+  default any more** — see below. It is 3 GB that can be deleted and rebuilt
+  with `./build_ct2.py` if the disk is wanted.
+- Last measured: the 25 min interview in 48 s + 3 s diarization
 - **Git repo initialised 2026-08-20**, no remote. `.gitignore` excludes the
   recordings, everything derived from them, and the model weights. Before adding
   a remote, note that nothing tracked names the interviewee — keep it that way.
@@ -56,8 +59,13 @@ The two decisions most likely to get second-guessed:
 
 - **No glossary/hotwords.** It fixed three domain terms and invented a word.
   A confident wrong noun is worse than an obvious one.
-- **`flix-ct2` over `ct2`,** despite `ct2` being smaller and faster. Licence:
-  `ct2` is CC-BY-NC. See `docs/licensing.md`.
+- **The default model is CC-BY-NC**, deliberately, and this reversed on
+  2026-08-20. The original four-way bench picked Apache-2.0 `flix-ct2` on
+  licence grounds. Re-measured head-to-head on the *full* interview rather than
+  2 minutes, the turbo model is 3× faster, needs no build step, and matches on
+  content — see the top of `docs/findings.md`. This is a school project and
+  CC-BY-NC permits coursework. **It does not permit billable work.** If that
+  changes, `./build_ct2.py && --model ./flix-ct2` is the whole switch.
 
 ## Conventions that exist for a reason
 
@@ -73,9 +81,11 @@ The two decisions most likely to get second-guessed:
 
 ## Speaker labels: done
 
-`diarize.py` + `--names A B` on `run.py`. **97.2 %** on the full interview
-(placeable segments; the raw number is 89.9 % and the difference is the scorer,
-not the labelling — `docs/speaker-labels.md` explains which to quote).
+`diarize.py` + `--names A B` on `run.py`. **98.6 %** on the full interview with
+the default model (placeable segments; the raw number is 96.7 %). The old
+flix-ct2 figures were 97.2 % / 89.9 %. **Those two are not comparable** — the
+scorer favours coarser segmentation — and `docs/speaker-labels.md` says why and
+which to quote.
 
 Two things to know before touching it:
 
