@@ -1,6 +1,6 @@
 # Speaker labels
 
-Implemented in `diarize.py`. `python run.py audio.m4a --names A B`
+Implemented in `diarize.py`. `python run.py audio.m4a --names Anna Beat`
 writes `out/<key>.speakers.txt` alongside the unlabelled `out/<key>.txt`.
 Add `--merge-turns` for one paragraph per turn, which is the readable form:
 188 segments become 48 turns, against 47 in the hand-written docx.
@@ -10,9 +10,9 @@ distance at a fixed `n_clusters`. `speechbrain/spkrec-ecapa-voxceleb`,
 Apache-2.0 and ungated, so `docs/licensing.md` is unaffected.
 
 Speakers are numbered by first appearance, so `--names` takes them in the order
-they speak. On `interview-full.m4a` that is `A,B` — the interviewer
-opens with "Herzlich willkommen, B". Getting this backwards is silent: the
-clustering is still right, only the names are swapped.
+they speak. On `interview-full.m4a` that is the interviewer first, then the
+interviewee — the recording opens with the welcome. Getting this backwards is
+silent: the clustering is still right, only the names are swapped.
 
 ## What it scores
 
@@ -56,9 +56,9 @@ short segment's own embedding must sit before it is trusted over the neighbour:
 
 The neighbour rule fails exactly where you'd expect: a short backchannel that
 *starts* a turn inherits from the long segment before it. `[00:24:57] Ja,
-bitte.` (0.80 s) and `[00:24:58] Danke für die Einladung.` (1.08 s) are B
-in the docx, and the nearest long segment is A's "Cool, dass du dir Zeit
-genommen hast".
+bitte.` (0.80 s) and `[00:24:58] Danke für die Einladung.` (1.08 s) are the
+interviewee in the docx, and the nearest long segment is the interviewer
+signing off.
 
 **This is 7 segments.** The margin is a conservative default that fixes two
 confirmed errors, not a tuned parameter. Don't read the table as precision.

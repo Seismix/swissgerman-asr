@@ -58,15 +58,17 @@ The two decisions most likely to get second-guessed:
 
 ## Speaker labels: done
 
-`diarize.py` + `--names=A,B` on `run.py`. **97.2 %** on the full interview
+`diarize.py` + `--names A B` on `run.py`. **97.2 %** on the full interview
 (placeable segments; the raw number is 89.9 % and the difference is the scorer,
 not the labelling — `docs/speaker-labels.md` explains which to quote).
 
 Two things to know before touching it:
 
 - **`--names` takes speakers in order of first appearance.** For
-  `interview-full.m4a` that is `A,B`. Backwards is silent — the
-  clustering stays correct and only the names swap.
+  `interview-full.m4a` that is the interviewer first, then the interviewee.
+  Backwards is silent — the clustering stays correct and only the names swap.
+  Names of real people belong in the command line, not in the repo: the
+  interviewee consented to be recorded, not to be named in a public file.
 - **`--relabel` reuses cached segments** from `out/<key>.segments.json`, 6 s
   instead of 154 s. Use it for any clustering change.
 - **`diarize.embed` must subtract the clip offset**, not the first segment's

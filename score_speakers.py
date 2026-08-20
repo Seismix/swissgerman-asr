@@ -1,34 +1,71 @@
-"""Score out/<key>.speakers.txt against the speaker attribution in the docx.
+"""Score out/<key>.speakers.txt against the speaker attribution in a reference.
 
-The docx is edited prose and is NOT timestamp-aligned, so it cannot give a WER
-(see data/README.md). It can give a *speaker* score: who said something is
+    python score_speakers.py [labelled.txt] [reference.txt]
+
+The reference is edited prose and is NOT timestamp-aligned, so it cannot give a
+WER (see data/README.md). It can give a *speaker* score: who said something is
 objective in a way transcription convention is not. Segments are aligned to
-docx turns by monotonic DP on content-word overlap, then the labels compared.
+reference turns by monotonic DP on content-word overlap, then the labels
+compared.
+
+Speaker names are read from the labelled transcript - whatever `--names` put
+there - and then used to parse the reference, so this works on any recording.
 """
 import re, sys, pathlib
 
-DOCX = pathlib.Path("data/transcripts/_docx_transkript.txt")
 LABELLED = pathlib.Path(sys.argv[1] if len(sys.argv) > 1
                         else "out/flix-ct2.speakers.txt")
+DOCX = pathlib.Path(sys.argv[2] if len(sys.argv) > 2
+                    else "data/transcripts/_docx_transkript.txt")
+
+# "[00:01:23] Name: text" - the format transcript.as_txt writes with labels.
+LABELLED_LINE = re.compile(r"^\[([\d:]+)\]\s*([^:]{1,40}?):\s*(.*)")
+# "Name: text" - any attributed line, so we can tell a speaker we don't know
+# about from prose that merely contains a colon.
+ANY_TURN = re.compile(r"^([^:]{1,40}?):\s*(.*)")
+
 
 def words(s):
     return {w for w in re.findall(r"[a-zäöüß]+", s.lower()) if len(w) >= 5}
 
-turns = []
-for line in DOCX.read_text(encoding="utf-8").splitlines():
-    m = re.match(r"^(A|B):\s*(.*)", line)
-    if m:
-        turns.append((m.group(1), words(m.group(2))))
+
+if not LABELLED.exists():
+    sys.exit(f"no such file: {LABELLED}  (run with --names to produce one)")
+if not DOCX.exists():
+    sys.exit(f"no such file: {DOCX}")
 
 segs = []
 for line in LABELLED.read_text(encoding="utf-8").splitlines():
-    m = re.match(r"^\[([\d:]+)\]\s*(A|B):\s*(.*)", line)
+    m = LABELLED_LINE.match(line)
     if m:
         segs.append((m.group(1), m.group(2), m.group(3)))
+if not segs:
+    sys.exit(f"{LABELLED} has no '[time] Name: text' lines - was it written "
+             f"without --names?")
+
+# The reference is parsed with the names the transcript actually uses, rather
+# than a hardcoded pair. A name in the reference that no segment carries is
+# reported instead of silently dropped: it would otherwise shrink the turn list
+# and shift every alignment.
+names = {pred for _, pred, _ in segs}
+turns, unknown = [], {}
+for line in DOCX.read_text(encoding="utf-8").splitlines():
+    m = ANY_TURN.match(line)
+    if not m:
+        continue
+    who, said = m.group(1).strip(), m.group(2)
+    if who in names:
+        turns.append((who, words(said)))
+    else:
+        unknown[who] = unknown.get(who, 0) + 1
+if not turns:
+    sys.exit(f"{DOCX} has no turns attributed to {sorted(names)} - check that "
+             f"--names matches the names used in the reference")
 
 n, mlen = len(segs), len(turns)
-sim = [[len(words(t) & tw) / max(1, len(words(t))) for _, tw in turns]
-       for _, _, t in segs]
+turn_words = [tw for _, tw in turns]
+sim = [[len(sw & tw) / max(1, len(sw)) for tw in turn_words]
+       for sw in (words(t) for _, _, t in segs)]
 
 NEG = float("-inf")
 dp = [[NEG] * mlen for _ in range(n)]
@@ -65,12 +102,20 @@ for i, (ts, pred, txt) in enumerate(segs):
     if not hit:
         rows.append((ts, pred, truth, s, txt))
 
-print(f"{LABELLED}  ({len(turns)} docx turns, {n} segments)")
+print(f"{LABELLED}  ({len(turns)} reference turns, {n} segments, "
+      f"speakers: {', '.join(sorted(names))})")
+for who, count in sorted(unknown.items(), key=lambda kv: -kv[1]):
+    print(f"  note: {count} reference line(s) attributed to {who!r}, which no "
+          f"segment carries - not scored")
 print(f"  all segments        {ok}/{n} = {100 * ok / n:.1f}%")
 d = conf_ok + conf_bad
-print(f"  confidently aligned {conf_ok}/{d} = {100 * conf_ok / d:.1f}%  "
-      f"(conf >= {CONF}; {unplaced} segments unplaceable)")
-print("\nmismatches (ts, predicted, docx, align-confidence):")
+if d:
+    print(f"  confidently aligned {conf_ok}/{d} = {100 * conf_ok / d:.1f}%  "
+          f"(conf >= {CONF}; {unplaced} segments unplaceable)")
+else:
+    print(f"  confidently aligned  n/a - all {n} segments below conf {CONF}")
+
+print("\nmismatches (ts, predicted, reference, align-confidence):")
 for ts, pred, truth, s, txt in rows:
     flag = "  <- alignment unreliable" if s < CONF else ""
-    print(f"  [{ts}] pred={pred:<6} docx={truth:<6} conf={s:.2f}  {txt[:70]}{flag}")
+    print(f"  [{ts}] pred={pred:<6} ref={truth:<6} conf={s:.2f}  {txt[:70]}{flag}")
