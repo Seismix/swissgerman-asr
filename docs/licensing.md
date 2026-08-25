@@ -44,10 +44,12 @@ returns three segments of up to 267 words, which diarizes badly. See
 **This path has not been re-run since 2026-08-20**, when the CTranslate2
 converter and its 2.9 GB output were deleted. The numbers above are from the
 original bench, where the transformers backend on this model measured 42 s on
-the 2 min clip against the converted model's 22 s. Expect it to be roughly 2x
-slower than the default, on top of the default already being 3x faster than the
-converted flix. Budget accordingly and verify before promising anyone a
-turnaround.
+the 2 min clip against the converted model's 22 s — about **1.9x** the
+converted flix, which is itself **3.2x** the default on the full interview
+(154 s against 48 s). Chained, that puts this path at roughly **6x the
+default's GPU time**: call it 5 minutes for the 25 min interview. Both legs are
+measured, the product is not. Budget accordingly and verify before promising
+anyone a turnaround.
 
 If the conversion is wanted back, `build_ct2.py` is in git history:
 
