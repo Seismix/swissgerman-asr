@@ -16,17 +16,21 @@ Optionally labels who is speaking.
 ./setup.sh
 ```
 
-Needs `ffmpeg` and Python 3. There is no build step. `setup.sh` picks CUDA,
-ROCm or CPU torch wheels, then downloads the one model this machine can run —
-1.6 GB, or 3 GB on AMD — into `~/.cache/huggingface`.
+Needs `ffmpeg` and Python 3, and that one line is the whole install — nothing to
+configure and no build step. It picks CUDA, ROCm or CPU torch wheels for the card
+it finds, then downloads the one model that card can run — 1.6 GB, or 3 GB on
+AMD — into `~/.cache/huggingface`.
+
+Two overrides exist for when that goes wrong. **Neither is needed on a normal
+install:**
 
 ```bash
-FLAVOUR=cpu ./setup.sh              # force CPU wheels
-MODEL=Owner/Name ./setup.sh         # pull a different model: repo id, hf.co URL, or local dir
+FLAVOUR=cpu ./setup.sh          # ignore the GPU, install CPU wheels
+MODEL=Owner/Name ./setup.sh     # pull this instead: repo id, hf.co URL, or local dir
 ```
 
-`MODEL` only chooses what to download; it does not become the default, so pass
-`--model` on every run too.
+`MODEL` changes only what gets downloaded, not what `run.py` defaults to — so a
+custom model also needs `--model` on every run.
 
 ## GPUs
 
