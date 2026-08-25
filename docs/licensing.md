@@ -35,11 +35,16 @@ python run.py interview.m4a --model Flix-AI/flix-swissgerman-full --longform
 ```
 
 No conversion step: that runs it on the transformers backend straight from the
-hub (~3 GB). It is also **the only path that uses an AMD GPU** — CTranslate2 has
-no ROCm backend, so on a Radeon the default model is CPU-only and this one is
-not. `--longform` is not optional here — without it the chunked pipeline
+hub (~3 GB). `--longform` is not optional here — without it the chunked pipeline
 returns three segments of up to 267 words, which diarizes badly. See
 [findings.md](findings.md).
+
+**On an AMD GPU this is not an escape hatch, it is the default.** CTranslate2
+has no ROCm backend, so a Radeon cannot run the converted model at all;
+`asr.default_model()` hands that machine this one instead, `setup.sh` prefetches
+it and nothing else, and `run.py` implies `--longform`. The commercial
+restriction therefore never applies on AMD — the explicit `--model` above is
+only needed on NVIDIA or CPU.
 
 **This path has not been re-run since 2026-08-20**, when the CTranslate2
 converter and its 2.9 GB output were deleted. The numbers above are from the

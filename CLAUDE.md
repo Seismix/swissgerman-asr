@@ -44,8 +44,20 @@ local conversion is ever wanted again — `git show 5fb0842:build_ct2.py`.
   backend up front rather than letting it fail at model load.
 - `transformers` resolved to **5.15.1** — the major-version jump was tested, both
   the chunked and `--longform` HF paths work. Deliberately left unpinned.
-- **No model is stored in the repo.** The default is pulled from HF on first
-  run and cached in `~/.cache/huggingface` (1.6 GB).
+- **No model is stored in the repo.** `setup.sh` ends by running
+  `run.py --prefetch`, which pulls **one** model into `~/.cache/huggingface` —
+  the one this machine's GPU can run. `MODEL=Owner/Name ./setup.sh` overrides
+  what gets pulled but not what `run.py` defaults to; that asymmetry is
+  deliberate and the script says so on the way out.
+- **The default model depends on the card**, since 2026-08-25.
+  `asr.default_model()` returns `ROCM_MODEL` (`Flix-AI/flix-swissgerman-full`,
+  Apache-2.0, ~3 GB, transformers) on a ROCm box and `DEFAULT_MODEL` (the
+  CC-BY-NC turbo CT2 model, 1.6 GB) everywhere else. The point is that no
+  machine downloads weights its GPU cannot use — an AMD box used to be told to
+  pull the turbo model and then run it on CPU. `run.py` implies `--longform`
+  when it reaches the AMD model *as a default*; an explicit `--model` never
+  gets it. `parse_model_spec(None)` therefore imports torch, which is why the
+  `--clip` parse now happens before it rather than after.
 - Last measured: the 25 min interview in 48 s + 3 s diarization, or 7 m 54 s on
   16 CPU threads. **CPU and GPU do not produce the same transcript** - 111
   segments against 90 on the full interview. It is the kernels, not the

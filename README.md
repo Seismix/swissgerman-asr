@@ -16,21 +16,31 @@ Optionally labels who is speaking.
 ./setup.sh
 ```
 
-Needs `ffmpeg` and Python 3. Picks CUDA, ROCm or CPU torch wheels automatically;
-`FLAVOUR=cpu ./setup.sh` overrides that. There is no build step — the first run
-pulls the 1.6 GB model and caches it.
-
-## AMD GPUs
-
-The default model runs on **CPU** — CTranslate2 has no ROCm backend, and no
-flag changes that. Budget the 8 minutes above. To use the card, switch models:
+Needs `ffmpeg` and Python 3. There is no build step. `setup.sh` picks CUDA,
+ROCm or CPU torch wheels, then downloads the one model this machine can run —
+1.6 GB, or 3 GB on AMD — into `~/.cache/huggingface`.
 
 ```bash
-python run.py interview.m4a --model Flix-AI/flix-swissgerman-full --longform
+FLAVOUR=cpu ./setup.sh              # force CPU wheels
+MODEL=Owner/Name ./setup.sh         # pull a different model: repo id, hf.co URL, or local dir
 ```
 
-That one is Apache-2.0, so the CC-BY-NC note above doesn't apply. Needs a native
-Linux install, not WSL.
+`MODEL` only chooses what to download; it does not become the default, so pass
+`--model` on every run too.
+
+## GPUs
+
+`--device auto` is the default and picks the card itself. The model follows the
+card, so nothing needs passing on any of them:
+
+```bash
+python run.py interview.m4a
+```
+
+AMD gets a different model because CTranslate2 has no ROCm backend — the turbo
+model would be 1.6 GB that only ever runs on CPU. `--longform` is implied there.
+
+Don't pass `--device rocm` or `cuda` with the turbo model — it is refused.
 
 ## Use
 

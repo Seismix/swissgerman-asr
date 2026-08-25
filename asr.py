@@ -8,13 +8,29 @@ from transcript import Seg
 HERE = pathlib.Path(__file__).resolve().parent
 CACHE = HERE / "cache"
 
-# One model, not a bench. Already in CTranslate2 form on the hub, so there is no
-# build step: faster-whisper pulls 1.6 GB on first run and caches it.
+# Two models, and which one is the default depends on the card, because a
+# machine should not download 1.6 GB of weights its GPU can never run.
 #
-# CC-BY-NC-4.0. Fine for coursework and personal research, NOT for commercial
-# work - docs/licensing.md has the chain and the Apache-2.0 route if you need
-# one. docs/findings.md has the measurements that chose it.
+# Already in CTranslate2 form on the hub, so there is no build step: 1.6 GB,
+# cached on first use. CC-BY-NC-4.0 - fine for coursework and personal
+# research, NOT for commercial work; docs/licensing.md has the chain and the
+# Apache-2.0 route. docs/findings.md has the measurements that chose it.
 DEFAULT_MODEL = "OSTswiss/whisper-large-v3-turbo-swiss-german-ct2"
+
+# The AMD default. Apache-2.0, transformers format, ~3 GB, and the only
+# transcription path a Radeon can run at all - see ROCM_HELP below. Slower than
+# the turbo model on CUDA, which is why it is not the default everywhere.
+# Requires --longform, which run.py implies when this is reached as a default.
+ROCM_MODEL = "Flix-AI/flix-swissgerman-full"
+
+
+def default_model():
+    """-> repo id. The model this machine can actually put on its GPU.
+
+    Probes torch through gpu_kind(), so it costs the torch import; only reached
+    when no --model was passed.
+    """
+    return ROCM_MODEL if gpu_kind() == "rocm" else DEFAULT_MODEL
 
 
 def parse_model_spec(spec=None):
@@ -24,7 +40,7 @@ def parse_model_spec(spec=None):
     default writes out/whisper-large-v3-turbo-swiss-german-ct2.txt. Long, but
     derived by a rule rather than a lookup table, so it stays true for --model.
     """
-    spec = str(spec or DEFAULT_MODEL).strip()
+    spec = str(spec or default_model()).strip()
     if "://" in spec:
         host, _, path = spec.split("://", 1)[1].partition("/")
         if "huggingface.co" not in host:
@@ -280,6 +296,28 @@ def transcribe(repo, backend, wav, longform=False, offset=0.0, device="cuda",
         return run_fw(repo, wav, offset, device, compute_type)
     assert not compute_type, "run.py should have rejected this up front"
     return run_hf(repo, wav, longform, offset, device)
+
+
+def prefetch(repo=None):
+    """Download a model's weights and stop. -> the local snapshot path.
+
+    setup.sh calls this through `run.py --prefetch` so a machine pulls the one
+    model it can run, once, while the user is still watching the installer -
+    rather than in the middle of their first transcription.
+
+    A transformers repo often ships the same weights twice, as safetensors and
+    as pytorch_model.bin; transformers loads the safetensors and the .bin is
+    dead weight. Excluded by its own name rather than by "*.bin", which would
+    also exclude a CTranslate2 model's model.bin - the entire model.
+    """
+    from huggingface_hub import list_repo_files, snapshot_download
+    repo = repo or default_model()
+    if pathlib.Path(repo).is_dir():
+        return repo
+    ignore = ["*.msgpack", "*.h5", "*.onnx", "*.ot", "*.tflite"]
+    if any(f.endswith(".safetensors") for f in list_repo_files(repo)):
+        ignore.append("pytorch_model*.bin")
+    return snapshot_download(repo_id=repo, ignore_patterns=ignore)
 
 
 def missing_local(repo):

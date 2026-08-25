@@ -8,8 +8,9 @@
 
 Defaults to a CTranslate2 Swiss German model pulled straight from HuggingFace -
 no build step. It is CC-BY-NC: fine for coursework, not for commercial work, see
-docs/licensing.md. --model takes any HF repo id, huggingface.co URL, or local
-converted directory.
+docs/licensing.md. On an AMD GPU the default is the Apache-2.0 transformers
+model instead, because CTranslate2 cannot use a Radeon at all. --model takes any
+HF repo id, huggingface.co URL, or local converted directory.
 
 Transcripts land in out/<model-name>.txt. Decoded audio is cached in cache/ so
 the source directory is never written to.
@@ -42,11 +43,13 @@ def build_parser():
     p = argparse.ArgumentParser(
         description=__doc__.split("\n")[0],
         formatter_class=argparse.RawDescriptionHelpFormatter,
-        epilog=f"default model: {asr.DEFAULT_MODEL}")
+        epilog=f"default model: {asr.DEFAULT_MODEL}\n"
+               f"        on AMD: {asr.ROCM_MODEL}")
     p.add_argument("audio", nargs="?", help="any format ffmpeg reads")
     p.add_argument("--model", default=None, metavar="SPEC",
                    help="converted directory, HF repo id, or huggingface.co "
-                        "URL (default: the CC-BY-NC turbo model)")
+                        "URL (default: the CC-BY-NC turbo model, or the "
+                        "Apache-2.0 one on an AMD GPU)")
     p.add_argument("--backend", default="auto", choices=["auto", "fw", "hf"],
                    help="fw = CTranslate2, hf = transformers. auto picks fw "
                         "when the model has model.bin at its root, on disk or "
@@ -72,6 +75,9 @@ def build_parser():
                         "CPU (default). rocm is an alias for cuda, which is "
                         "what torch calls a Radeon; CTranslate2 models cannot "
                         "use one either way")
+    m.add_argument("--prefetch", action="store_true",
+                   help="download the model this machine needs and exit; no "
+                        "audio required. setup.sh runs this.")
     m.add_argument("--compute-type", default=None, metavar="T",
                    help="CTranslate2 precision, e.g. int8_float16, float16, "
                         "int8. Default depends on --device. CTranslate2 models "
@@ -182,6 +188,29 @@ def warn_stale(out, key):
     print("  nothing written for this model - fix the above and re-run")
 
 
+def prefetch_only(a):
+    """--prefetch: resolve the default for this machine, pull it, stop."""
+    try:
+        repo, key = asr.parse_model_spec(a.model)
+    except ValueError as e:
+        sys.exit(str(e))
+    if asr.missing_local(repo):
+        sys.exit(f"{repo} does not exist - nothing to download.")
+    if pathlib.Path(repo).is_dir():
+        print(f"{key}: a local directory, nothing to download")
+        return 0
+    device, torch_device = asr.resolve_device("auto", asr.detect_backend(repo))
+    print(f"device: {asr.describe_device(device, torch_device)}")
+    print(f"pulling {repo}", flush=True)
+    try:
+        asr.prefetch(repo)
+    except Exception as e:
+        print(f"FAILED: {type(e).__name__}: {e}")
+        return 1
+    print(f"cached: {key}")
+    return 0
+
+
 def main(argv=None):
     parser = build_parser()
     a = parser.parse_args(argv)
@@ -189,6 +218,8 @@ def main(argv=None):
     if a.names or a.min_dur is not None or a.margin is not None or a.relabel:
         a.diarize = True
     names = resolve_names(a, parser)
+    if a.prefetch:
+        return prefetch_only(a)
     if not a.audio:
         parser.error("an audio file is required")
     if a.merge_turns and not a.diarize:
@@ -199,11 +230,25 @@ def main(argv=None):
     if not src.exists():
         sys.exit(f"no such file: {src}")
 
+    # Before the model spec, which resolves a default by probing torch: an
+    # unparseable --clip should not cost two seconds to be told about.
+    try:
+        clip = asr.parse_clip(a.clip) if a.clip else None
+    except ValueError as e:
+        sys.exit(str(e))
+
     try:
         repo, key = asr.parse_model_spec(a.model)
     except ValueError as e:
         sys.exit(str(e))
     backend = a.backend if a.backend != "auto" else asr.detect_backend(repo)
+
+    # Not optional on the AMD default: without it the chunked pipeline returns
+    # a handful of segments hundreds of words long, which diarizes badly. The
+    # user did not choose this model, so they are not left to remember its flag.
+    if a.model is None and repo == asr.ROCM_MODEL and not a.longform:
+        a.longform = True
+        print("note: --longform implied, this model needs it")
 
     # Checked before anything expensive: the point of rejecting this is to not
     # find out after a decode that the run used a precision other than the one
@@ -213,13 +258,6 @@ def main(argv=None):
                  f"the transformers backend where it would be accepted and "
                  f"ignored.\nDrop it, or pass --backend fw if {key} really is "
                  f"a converted model.")
-
-    # Parsed before the device probe, which imports torch: an unparseable
-    # --clip should not cost two seconds to be told about.
-    try:
-        clip = asr.parse_clip(a.clip) if a.clip else None
-    except ValueError as e:
-        sys.exit(str(e))
 
     if asr.missing_local(repo):
         sys.exit(f"{repo} does not exist.\nPass a --model that does - a "

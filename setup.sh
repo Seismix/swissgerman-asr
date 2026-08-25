@@ -30,9 +30,10 @@ elif command -v rocminfo >/dev/null 2>&1 || [ -e /dev/kfd ]; then
   # bottom of this script is what answers it.
   FLAVOUR=rocm6.4
   echo "AMD GPU detected: installing ROCm wheels"
-  echo "  note: CTranslate2 has no AMD backend, so the DEFAULT model still runs"
-  echo "  on CPU. The GPU is used for speaker labels, and for the transformers"
-  echo "  backend: run.py AUDIO --model Flix-AI/flix-swissgerman-full --longform"
+  echo "  note: CTranslate2 has no AMD backend, so this machine defaults to the"
+  echo "  Apache-2.0 transformers model (~3 GB) instead of the 1.6 GB converted"
+  echo "  one - it is the only transcription path a Radeon can run. run.py"
+  echo "  picks it automatically; nothing to pass."
 else
   FLAVOUR=cpu
   echo "no NVIDIA or AMD GPU found: installing CPU-only wheels (slow)"
@@ -77,5 +78,29 @@ if ok:
                  f"card's architecture. Try a different ROCm index, or fall "
                  f"back with: FLAVOUR=cpu ./setup.sh")
 EOF
+# Pull the weights now rather than in the middle of the user's first
+# transcription. --prefetch resolves the same device-dependent default that a
+# real run would, so an AMD box downloads the model it can use and *only* that
+# one. Failing here is not fatal: the first run would pull it anyway, and a
+# flaky hub should not fail an otherwise-good install.
+#
+# MODEL=Owner/Name ./setup.sh pulls something else instead - an HF repo id, a
+# huggingface.co URL, or a local directory, the same spec --model takes. It
+# does NOT become the default, because the default is what this machine's GPU
+# can run and an override cannot know that; the reminder below is what closes
+# that gap.
 echo
-echo "next: python run.py AUDIO   (pulls the 1.6 GB model on first run)"
+prefetch=(--prefetch)
+if [ -n "${MODEL:-}" ]; then
+  prefetch+=(--model "$MODEL")
+  echo "MODEL=$MODEL taken from the environment, instead of this machine's default"
+fi
+./.venv/bin/python run.py "${prefetch[@]}" || echo "  prefetch failed - the first run will pull it instead"
+
+echo
+if [ -n "${MODEL:-}" ]; then
+  echo "next: python run.py AUDIO --model $MODEL"
+  echo "  (--model every run: prefetching one does not make it the default)"
+else
+  echo "next: python run.py AUDIO"
+fi
