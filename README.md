@@ -1,5 +1,15 @@
 # swissgerman-asr
 
+> **Vibe-coded, then measured.** Written by prompting rather than line by line,
+> then tested against a real 25-minute dialect interview, where it held up:
+> content words came out under 1 % wrong. It is still not a polished
+> transcription product, and **the output needs a manual editing pass.** Errors
+> cluster on proper nouns — about 20 clusters in 2800 words, each one a single
+> find-replace — and what it gets wrong, it gets obviously wrong. The subtler
+> risk is the opposite: it silently drops filler words rather than inventing
+> content, so listen for gaps instead of only proofreading.
+> [findings.md](docs/findings.md) has the numbers.
+
 Swiss German speech in, **Standard German** text out. Runs locally — nothing is
 uploaded. 25 minutes of audio takes about 50 s on an RTX 4060 Laptop, or 8
 minutes on a 16-thread CPU.
