@@ -1,5 +1,6 @@
 # swissgerman-asr
 
+> [!IMPORTANT]
 > **Vibe-coded, then measured.** Written by prompting rather than line by line,
 > then tested against a real 25-minute dialect interview, where it held up:
 > content words came out under 1 % wrong. It is still not a polished
@@ -16,6 +17,7 @@ minutes on a 16-thread CPU.
 
 Optionally labels who is speaking.
 
+> [!CAUTION]
 > **The default model is CC-BY-NC-4.0** — coursework and personal research only,
 > nothing billable. [licensing.md](docs/licensing.md) has the switch to an
 > Apache-2.0 model.
@@ -102,10 +104,11 @@ An `srt` of a clipped span is therefore offset by the clip start.
 - [licensing.md](docs/licensing.md) — the default is non-commercial: what that permits, and the switch if it doesn't
 - [speaker-labels.md](docs/speaker-labels.md) — diarization: how it scores, and what it still can't do
 
-The numbers in those docs come from a 25-minute two-speaker interview recorded
-for a school project. **That audio is not in this repo and will not be** — the
-person in it consented to be interviewed, not to be distributed. Nothing here
-is reproducible from a clone.
+> [!NOTE]
+> The numbers in those docs come from a 25-minute two-speaker interview recorded
+> for a school project. **That audio is not in this repo and will not be** — the
+> person in it consented to be interviewed, not to be distributed. Nothing here
+> is reproducible from a clone.
 
 ## Licence
 

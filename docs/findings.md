@@ -3,6 +3,7 @@
 Measured on 2 minutes of clean lavalier-mic dialect interview audio plus one
 full 25 minute run. Two speakers, quiet room, single mono track.
 
+> [!NOTE]
 > **The test audio is not in this repo and will not be.** It is a 25-minute
 > two-speaker interview recorded for a school project; the person in it
 > consented to be interviewed, not to be distributed. None of these numbers are

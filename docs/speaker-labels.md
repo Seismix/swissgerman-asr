@@ -14,6 +14,7 @@ Speakers are numbered by first appearance, so `--names` takes them in the order
 they speak. Getting this backwards is silent: the clustering is still right,
 only the names are swapped.
 
+> [!NOTE]
 > The numbers below come from a 25-minute two-speaker interview recorded for a
 > school project. **That audio is not in this repo and will not be** — the
 > person in it consented to be interviewed, not to be distributed. Nothing here
