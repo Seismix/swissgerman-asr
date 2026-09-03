@@ -91,3 +91,8 @@ An `srt` of a clipped span is therefore offset by the clip start.
 - [rejected.md](docs/rejected.md) — approaches tested and dropped, with the measurements
 - [licensing.md](docs/licensing.md) — the default is non-commercial: what that permits, and the switch if it doesn't
 - [speaker-labels.md](docs/speaker-labels.md) — diarization: how it scores, and what it still can't do
+
+The numbers in those docs come from a 25-minute two-speaker interview recorded
+for a school project. **That audio is not in this repo and will not be** — the
+person in it consented to be interviewed, not to be distributed. Nothing here
+is reproducible from a clone.

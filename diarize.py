@@ -14,7 +14,8 @@ import numpy as np
 ECAPA = "speechbrain/spkrec-ecapa-voxceleb"
 SAVEDIR = pathlib.Path(__file__).resolve().parent / "models" / "ecapa"
 
-# Below this a segment ("Genau.", "Wow, ja.") is too short to cluster on.
+# Below this a segment - a one-word backchannel, typically - is too short to
+# cluster on.
 MIN_DUR = 1.5
 
 # How much closer to one centroid such a segment must sit before its own noisy

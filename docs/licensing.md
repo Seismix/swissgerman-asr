@@ -79,5 +79,5 @@ an additional no-reidentification clause from the corpus.
 
 For an AI-use journal or a methods section: name the model repo, the licence,
 and the fact that it ran locally with no data sent to a third party. That last
-point is the one that matters when the recording contains a named, identifiable
+point is the one that matters when the recording contains an identifiable
 person who agreed to be interviewed, not to have their voice uploaded.

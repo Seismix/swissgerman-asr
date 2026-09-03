@@ -3,6 +3,12 @@
 Measured on 2 minutes of clean lavalier-mic dialect interview audio plus one
 full 25 minute run. Two speakers, quiet room, single mono track.
 
+> **The test audio is not in this repo and will not be.** It is a 25-minute
+> two-speaker interview recorded for a school project; the person in it
+> consented to be interviewed, not to be distributed. None of these numbers are
+> reproducible from a clone. They are here so the conclusions can be checked
+> against your own audio rather than re-derived.
+
 **This records comparisons that have been run and closed.** They selected the
 default model; `run.py` no longer compares models, and the four-way bench that
 produced the early numbers is gone. Kept because the conclusions are the reason
@@ -23,7 +29,7 @@ against is not there.
 | segments | 90 (median 33 w) | 188 (median 17 w) |
 | words | 3388 | 3639 |
 | turns after `--merge-turns` | 42 | 48 |
-| docx content-word recall | **56.1 %** | 55.7 % |
+| reference content-word recall | **56.1 %** | 55.7 % |
 
 **The 251-word gap is filler, not content.** Turbo emits 7 % fewer words but
 recalls marginally *more* of the reference's content words, so what it drops is
@@ -34,7 +40,7 @@ dangerous failure mode — measured here, it is not biting.
 **Proper nouns are a wash, which is the same conclusion the four-way bench
 reached.** Neither model dominates; they fail on different words.
 
-| | docx | flix-ct2 | turbo |
+| | reference | flix-ct2 | turbo |
 | --- | --- | --- | --- |
 | Bassersdorf | 1 | ✗ `Passersdorf` | ✓ |
 | Schienennetz | 2 | ✓ ✓ | ✗ |
@@ -46,9 +52,9 @@ reached.** Neither model dominates; they fail on different words.
 
 **Where turbo is genuinely worse: turn granularity.** Its longer segments
 swallow short backchannels, so `--merge-turns` yields 42 turns against the
-docx's 46, where flix-ct2's finer segmentation yields 48. Over-segmenting is the
-recoverable direction; a swallowed turn is not. Four turns over 25 minutes was
-judged an acceptable price for 3× the speed and no build step.
+reference's 46, where flix-ct2's finer segmentation yields 48. Over-segmenting
+is the recoverable direction; a swallowed turn is not. Four turns over 25
+minutes was judged an acceptable price for 3× the speed and no build step.
 
 **Do not compare the two diarization scores directly.** Turbo scores 96.7 % raw
 / 98.6 % confidently-aligned against flix-ct2's 89.9 % / 97.2 %, but that is
@@ -63,8 +69,8 @@ The default backend is CTranslate2, which has exactly two devices: `cuda` and
 `cpu`. It rejects `rocm` and `hip`, so **an AMD card cannot run the default
 model at all** — this is not a driver or a flag problem.
 
-Measured on this machine, `--device cpu` against the auto-detected GPU. Wall
-clock, so both include ~18 s of model load:
+Measured on the hardware below, `--device cpu` against the auto-detected GPU.
+Wall clock, so both include ~18 s of model load:
 
 | | 2 min clip | full interview |
 | --- | --- | --- |

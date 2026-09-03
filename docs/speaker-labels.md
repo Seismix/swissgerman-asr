@@ -4,26 +4,32 @@ Implemented in `diarize.py`. `python run.py audio.m4a --names Anna Beat`
 writes `out/<key>.speakers.txt` alongside the unlabelled `out/<key>.txt`.
 Add `--merge-turns` for one paragraph per turn, which is the readable form: on
 the default model 90 segments become 42 turns, against 46 in the hand-written
-docx.
+reference.
 
 Segment → ECAPA embedding → L2-normalise → agglomerative clustering with cosine
 distance at a fixed `n_clusters`. `speechbrain/spkrec-ecapa-voxceleb`,
 Apache-2.0 and ungated, so `docs/licensing.md` is unaffected.
 
 Speakers are numbered by first appearance, so `--names` takes them in the order
-they speak. On `interview-full.m4a` that is the interviewer first, then the
-interviewee — the recording opens with the welcome. Getting this backwards is
-silent: the clustering is still right, only the names are swapped.
+they speak. Getting this backwards is silent: the clustering is still right,
+only the names are swapped.
+
+> The numbers below come from a 25-minute two-speaker interview recorded for a
+> school project. **That audio is not in this repo and will not be** — the
+> person in it consented to be interviewed, not to be distributed. Nothing here
+> is reproducible from a clone; it is recorded so the conclusions can be
+> checked against your own audio rather than re-derived.
 
 ## What it scores
 
-`score_speakers.py` scores against the speaker attribution in
-`_docx_transkript.txt` (47 attributed turns). That docx is useless for WER —
-edited prose, see `data/README.md` — but *who spoke* survives editing, so it
-works for this and nothing else does.
+`score_speakers.py` scores a labelled transcript against the speaker
+attribution in a reference transcript — any file with `Name: text` lines. On
+the test interview that reference was a hand-written transcript with 47
+attributed turns. It is useless for WER, being edited prose, but *who spoke*
+survives editing, so it works for this and nothing else does.
 
-On `interview-full.m4a`, by ASR model — **the diarization is identical code and
-the same embeddings; only the segmentation it is handed differs**:
+By ASR model — **the diarization is identical code and the same embeddings;
+only the segmentation it is handed differs**:
 
 | | default (turbo) | flix-ct2 |
 | --- | --- | --- |
@@ -42,14 +48,13 @@ honest cross-model signal is centroid cosine distance, unchanged at 0.845 vs
 0.846 — the embeddings never saw the ASR model's output.
 
 **Within one model, quote the confidently-aligned figure; the raw one is
-pessimistic.** The docx is not timestamp-aligned, so segments are matched to
-turns by monotonic DP on content-word overlap, and that aligner is the weaker
-half of the measurement. Hand-checking every flagged segment against the docx
-text, most "mismatches" are the aligner drifting, not the labelling. On
-flix-ct2, `[00:08:04]`, `[00:13:57]`, `[00:16:32]` and `[00:23:15]` are all
-cases where the label is right and the alignment is wrong; only the two closing
-segments were confirmed genuine errors, and those are fixed (below). All three
-of turbo's mismatches are backchannels ("Wow, ja.", "Okay, ja, genau.") that the
+pessimistic.** The reference is not timestamp-aligned, so segments are matched
+to turns by monotonic DP on content-word overlap, and that aligner is the
+weaker half of the measurement. Hand-checking every flagged segment, most
+"mismatches" are the aligner drifting, not the labelling. On flix-ct2, four of
+the six were cases where the label is right and the alignment is wrong; only
+the two closing segments were confirmed genuine errors, and those are fixed
+(below). All three of turbo's mismatches are one-word backchannels that the
 aligner places at conf 0.00–0.40.
 
 Don't quote a single accuracy figure from this without saying which one, and
@@ -65,14 +70,8 @@ The `conf >= 0.30` gate is a *ratio* — shared content words over the segment's
 content words — with no floor on how many words that is. A segment with one
 content word that happens to occur in the aligned turn scores 1.00 on the
 strength of a single coincidence. 13 of the 144 placeable segments are in that
-position, and **all four remaining mismatches are among them**:
-
-| | conf | shared words |
-| --- | --- | --- |
-| `[00:12:28]` "Genau." | 1.00 | 1 |
-| `[00:13:57]` | 0.50 | 1 |
-| `[00:16:32]` | 0.50 | 1 |
-| `[00:19:22]` | 0.33 | 1 |
+position, and **all four remaining mismatches are among them** — at conf 1.00,
+0.50, 0.50 and 0.33, each resting on exactly one shared word.
 
 Require two shared content words and the figure is 131/131. **Do not quote
 that as an accuracy** — the floor was picked after seeing which segments failed,
@@ -87,8 +86,9 @@ shared-word count per mismatch so this is visible instead of inferred.
 This doc used to say a sub-1.5 s segment has too little voice to embed and must
 take a neighbour's label. **Noisy is not the same as useless.** Measured on the
 7 short segments flix-ct2 produces on the full interview (turbo produces 2, and
-takes neither from a neighbour, so this table is not reachable on the default), by how much closer to one centroid the
-short segment's own embedding must sit before it is trusted over the neighbour:
+takes neither from a neighbour, so this table is not reachable on the default),
+by how much closer to one centroid the short segment's own embedding must sit
+before it is trusted over the neighbour:
 
 | `MARGIN` | short from neighbour | placeable | closing 2 segments |
 | --- | --- | --- | --- |
@@ -98,10 +98,9 @@ short segment's own embedding must sit before it is trusted over the neighbour:
 | 0.0 (embedding always) | 0 | 97.2 % | both right |
 
 The neighbour rule fails exactly where you'd expect: a short backchannel that
-*starts* a turn inherits from the long segment before it. `[00:24:57] Ja,
-bitte.` (0.80 s) and `[00:24:58] Danke für die Einladung.` (1.08 s) are the
-interviewee in the docx, and the nearest long segment is the interviewer
-signing off.
+*starts* a turn inherits from the long segment before it. The two closing
+segments are both under 1.1 s, both the second speaker, and the nearest long
+segment is the first speaker signing off.
 
 **This is 7 segments.** The margin is a conservative default that fixes two
 confirmed errors, not a tuned parameter. Don't read the table as precision.

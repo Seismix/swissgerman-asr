@@ -2,11 +2,13 @@
 
     python score_speakers.py [labelled.txt] [reference.txt]
 
-The reference is edited prose and is NOT timestamp-aligned, so it cannot give a
-WER (see data/README.md). It can give a *speaker* score: who said something is
-objective in a way transcription convention is not. Segments are aligned to
-reference turns by monotonic DP on content-word overlap, then the labels
-compared.
+The reference is any transcript with `Name: text` lines - typically a
+hand-written one. It is edited prose and is NOT timestamp-aligned, so it cannot
+give a WER. It can give a *speaker* score: who said something is objective in a
+way transcription convention is not. Segments are aligned to reference turns by
+monotonic DP on content-word overlap, then the labels compared.
+
+No reference ships with this repo; pass one as the second argument.
 
 Speaker names are read from the labelled transcript - whatever `--names` put
 there - and then used to parse the reference, so this works on any recording.
@@ -17,8 +19,8 @@ import re, sys, pathlib
 import asr
 LABELLED = pathlib.Path(sys.argv[1] if len(sys.argv) > 1
                         else f"out/{asr.parse_model_spec()[1]}.speakers.txt")
-DOCX = pathlib.Path(sys.argv[2] if len(sys.argv) > 2
-                    else "data/transcripts/_docx_transkript.txt")
+REF = pathlib.Path(sys.argv[2] if len(sys.argv) > 2
+                   else "data/transcripts/reference.txt")
 
 # "[00:01:23] Name: text" - the format transcript.as_txt writes with labels.
 LABELLED_LINE = re.compile(r"^\[([\d:]+)\]\s*([^:]{1,40}?):\s*(.*)")
@@ -33,8 +35,8 @@ def words(s):
 
 if not LABELLED.exists():
     sys.exit(f"no such file: {LABELLED}  (run with --names to produce one)")
-if not DOCX.exists():
-    sys.exit(f"no such file: {DOCX}")
+if not REF.exists():
+    sys.exit(f"no such file: {REF}")
 
 segs = []
 for line in LABELLED.read_text(encoding="utf-8").splitlines():
@@ -51,7 +53,7 @@ if not segs:
 # and shift every alignment.
 names = {pred for _, pred, _ in segs}
 turns, unknown = [], {}
-for line in DOCX.read_text(encoding="utf-8").splitlines():
+for line in REF.read_text(encoding="utf-8").splitlines():
     m = ANY_TURN.match(line)
     if not m:
         continue
@@ -61,7 +63,7 @@ for line in DOCX.read_text(encoding="utf-8").splitlines():
     else:
         unknown[who] = unknown.get(who, 0) + 1
 if not turns:
-    sys.exit(f"{DOCX} has no turns attributed to {sorted(names)} - check that "
+    sys.exit(f"{REF} has no turns attributed to {sorted(names)} - check that "
              f"--names matches the names used in the reference")
 
 n, mlen = len(segs), len(turns)
