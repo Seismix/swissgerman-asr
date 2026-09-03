@@ -1,8 +1,7 @@
-# Recordings and anything derived from them. data/ holds a named, identifiable
-# person who consented to be interviewed, not to be distributed - see
-# data/README.md. Never commit it, and never commit audio from anywhere else
-# either: the *.wav/*.m4a/*.mp3 rules are a second line of defence in case a
-# file lands outside data/.
+# Recordings and anything derived from them. data/ holds an identifiable person
+# who consented to be interviewed, not to be distributed. Never commit it, and
+# never commit audio from anywhere else either: the *.wav/*.m4a/*.mp3 rules are
+# a second line of defence in case a file lands outside data/.
 data/
 out/
 cache/
