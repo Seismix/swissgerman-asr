@@ -96,3 +96,10 @@ The numbers in those docs come from a 25-minute two-speaker interview recorded
 for a school project. **That audio is not in this repo and will not be** — the
 person in it consented to be interviewed, not to be distributed. Nothing here
 is reproducible from a clone.
+
+## Licence
+
+The code is [MIT](LICENSE). **The weights are not.** The model `setup.sh` pulls
+by default is CC-BY-NC-4.0 — non-commercial only — and that restriction is on
+you, not on this repo. [licensing.md](docs/licensing.md) has the chain and the
+one-flag switch to an Apache-2.0 model.

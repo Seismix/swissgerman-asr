@@ -9,15 +9,16 @@ with restrictive terms, and those terms propagate into every derivative.
 A CTranslate2 export of `Flurin17/whisper-large-v3-turbo-swiss-german`, which is
 CC-BY-NC because its training data (SwissDial) is.
 
-**Non-commercial only.** This is a school project, and coursework and personal
-research are exactly what CC-BY-NC permits, so it is the default: 1.6 GB, no
-build step, and 3× faster than the alternative for output that
-[findings.md](findings.md) measures as equivalent.
+**Non-commercial only.** Coursework and personal research are exactly what
+CC-BY-NC permits, which is what this pipeline was built for, so it is the
+default: 1.6 GB, no build step, and 3× faster than the alternative for output
+that [findings.md](findings.md) measures as equivalent.
 
-**The moment any of this is billable, the licence is violated.** Not the moment
-you publish — the moment a client pays for work the model produced. If that
-becomes possible, switch to the Apache-2.0 model below and re-run; nothing else
-in the pipeline changes.
+**If your use is commercial, this default violates the licence.** Not at the
+moment you publish — at the moment someone pays for work the model produced.
+The code in this repo is MIT and puts no restriction on you. The *weights* do,
+and `setup.sh` pulls them by default. Switch to the Apache-2.0 model below and
+re-run; nothing else in the pipeline changes.
 
 The upstream card self-reports 37.96 WER on a private validation split. That is
 a much worse number than flix's 25.6 %, on a non-comparable split — see
