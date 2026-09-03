@@ -58,7 +58,7 @@ re-adding a bench.
 
 A `build_ct2.py` converted a transformers checkpoint to CTranslate2; it was
 deleted on 2026-08-20 with the 2.9 GB output it produced, because the default
-model ships already-converted. Recover with `git show 5fb0842:build_ct2.py`.
+model ships already-converted. Recover with `git show 1fa032a:build_ct2.py`.
 
 ## Before changing anything
 
