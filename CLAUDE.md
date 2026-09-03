@@ -127,3 +127,29 @@ measured and is wrong on this audio; see the MARGIN table. Sample size is 7.
 Still open: VAD segments are not speaker turns, so a segment containing both
 voices sits between clusters. That is the ceiling, and resegmentation is the
 only fix. Diffing against `pyannote/speaker-diarization-3.1` is the next step.
+
+## Agent skills
+
+`.claude/skills/proofread-transcript/` reviews a finished transcript for
+misheard proper nouns and domain terms. Added 2026-09-03; its first run against
+the interview proposed 5 fixes and refused to guess 12 more.
+
+Three things about it are decisions, not oversights:
+
+- **Reads may use any tool; writes may not.** Step 7 forbids `sed -i` and every
+  other in-place shell rewrite, because GNU and BSD `sed -i` disagree on whether
+  the backup suffix is mandatory, BSD `sed` has no `\b`, and Windows has no
+  `sed` at all. An earlier draft banned shell tools outright and was unfollowable
+  — this harness has no grep or glob tool to fall back on.
+- **It does not consult the proper-noun table in `docs/findings.md`**, so `Effi`
+  and `Passersdorf` come back as `target unknown` even though that table
+  resolves them. Deliberate. The table describes one recording; proposing a
+  Swiss place name into unrelated audio is the invented-noun failure
+  `docs/rejected.md` measured. Re-adding it means marking docs-sourced evidence
+  as weaker than in-file evidence in the report, or the distinction is lost.
+- **`scripts/listen_spots.py` has never fired.** It flags segments whose
+  words-per-second falls far under the file's own median, and at the floor it
+  ships — 3 s and 5 words — it finds 0 of 106 eligible segments on the
+  interview. Drop the word floor and it finds 1 of 107. The mechanism is sound
+  and unvalidated: an empty result is not a clean bill, and the ratio is
+  meaningless on segments too short to rate.

@@ -97,6 +97,19 @@ audio path first, or `--names` swallows it.
 **`--clip` timestamps stay absolute,** so a clipped run lines up with a full one.
 An `srt` of a clipped span is therefore offset by the clip start.
 
+## Agent skills
+
+`.claude/skills/` holds skills for coding agents that read them, Claude Code
+included. There is one so far:
+
+**`proofread-transcript`** — reviews a finished transcript in `out/` for the
+error class this pipeline actually produces: proper nouns and domain terms,
+misheard the same way every time. It finds the clusters, proposes a fix list,
+and changes nothing without your approval on each one.
+
+It cannot hear the recording, so it is not a substitute for listening — a
+read-through is exactly what misses a dropped word.
+
 ## Docs
 
 - [findings.md](docs/findings.md) — what these models actually do, and what to watch for
